@@ -27,11 +27,13 @@ module Environment
   )
 where
 
-import EulerHS.Prelude
+import qualified Data.Map as M
+import EulerHS.Prelude (newEmptyTMVarIO)
 import Kernel.External.Encryption (EncTools)
 import Kernel.External.Exotel.Types (ExotelCfg)
 import Kernel.External.Infobip.Types (InfoBIPConfig, WebengageConfig)
 import Kernel.External.Slack.Types (SlackConfig)
+import Kernel.Prelude
 import Kernel.Sms.Config
 import Kernel.Storage.Esqueleto.Config
 import Kernel.Storage.Hedis as Redis
@@ -51,7 +53,7 @@ import qualified Kernel.Utils.Registry as Registry
 import Kernel.Utils.Servant.Client (HttpClientOptions, RetryCfg)
 import Kernel.Utils.Servant.SignatureAuth
 import SharedLogic.GoogleTranslate
-import Storage.CachedQueries.BlackListOrg (findByShortId)
+import qualified Storage.CachedQueries.BlackListOrg as QBlackList
 import Storage.CachedQueries.CacheConfig
 import Tools.Metrics
 import Tools.Streaming.Kafka
@@ -88,7 +90,6 @@ data AppCfg = AppCfg
     shortDurationRetryCfg :: RetryCfg,
     longDurationRetryCfg :: RetryCfg,
     authTokenCacheExpiry :: Seconds,
-    registryUrl :: BaseUrl,
     signingKey :: PrivateKey,
     signatureExpiry :: Seconds,
     disableSignatureAuth :: Bool,
@@ -98,7 +99,8 @@ data AppCfg = AppCfg
     rideCfg :: RideConfig,
     dashboardToken :: Text,
     cacheConfig :: CacheConfig,
-    cacheTranslationConfig :: CacheTranslationConfig
+    cacheTranslationConfig :: CacheTranslationConfig,
+    registryMap :: M.Map Text BaseUrl
   }
   deriving (Generic, FromDhall)
 
@@ -126,7 +128,6 @@ data AppEnv = AppEnv
     shortDurationRetryCfg :: RetryCfg,
     longDurationRetryCfg :: RetryCfg,
     authTokenCacheExpiry :: Seconds,
-    registryUrl :: BaseUrl,
     signingKey :: PrivateKey,
     signatureExpiry :: Seconds,
     disableSignatureAuth :: Bool,
@@ -144,7 +145,8 @@ data AppEnv = AppEnv
     rideCfg :: RideConfig,
     dashboardToken :: Text,
     cacheConfig :: CacheConfig,
-    cacheTranslationConfig :: CacheTranslationConfig
+    cacheTranslationConfig :: CacheTranslationConfig,
+    registryMap :: M.Map Text BaseUrl
   }
   deriving (Generic)
 
@@ -194,10 +196,13 @@ instance AuthenticatingEntity AppEnv where
 
 instance Registry Flow where
   registryLookup =
-    Registry.withSubscriberCache $
-      Registry.whitelisting isWhiteListed <=< Registry.registryLookup
+    Registry.withSubscriberCache $ \sub -> do
+      asks (.registryMap) <&> M.lookup sub.subscriber_id
+        >>>= \registryUrl ->
+          Registry.registryLookup registryUrl sub
+            >>= Registry.whitelisting isWhiteListed
     where
-      isWhiteListed subscriberId = findByShortId (ShortId subscriberId) <&> isNothing
+      isWhiteListed subscriberId = QBlackList.findBySubscriberId (ShortId subscriberId) <&> isNothing
 
 instance Cache Subscriber Flow where
   type CacheKey Subscriber = SimpleLookupRequest

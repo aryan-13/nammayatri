@@ -20,6 +20,7 @@ module Storage.CachedQueries.Merchant
     findAll,
     findAllByExoPhone,
     findByShortId,
+    findBySubscriberId,
     findByExoPhone,
     update,
     clearCache,
@@ -33,6 +34,7 @@ import Kernel.Prelude
 import qualified Kernel.Storage.Esqueleto as Esq
 import qualified Kernel.Storage.Hedis as Hedis
 import Kernel.Types.Id
+import Kernel.Types.Registry (Subscriber)
 import Kernel.Utils.Common
 import Storage.CachedQueries.CacheConfig
 import qualified Storage.Queries.Merchant as Queries
@@ -60,6 +62,17 @@ findByShortId shortId_ =
   where
     findAndCache = flip whenJust cacheMerchant /=<< Queries.findByShortId shortId_
 
+findBySubscriberId :: (CacheFlow m r, EsqDBFlow m r) => ShortId Subscriber -> m (Maybe Merchant)
+findBySubscriberId subscriberId =
+  Hedis.get (makeSubscriberIdKey subscriberId) >>= \case
+    Nothing -> findAndCache
+    Just id ->
+      Hedis.get (makeIdKey id) >>= \case
+        Just a -> return . Just $ coerce @(MerchantD 'Unsafe) @Merchant a
+        Nothing -> findAndCache
+  where
+    findAndCache = flip whenJust cacheMerchant /=<< Queries.findBySubscriberId subscriberId
+
 findByExoPhone :: (CacheFlow m r, EsqDBFlow m r) => Text -> Text -> m (Maybe Merchant)
 findByExoPhone countryCode exoPhone =
   Hedis.safeGet (makeExoPhoneKey countryCode exoPhone) >>= \case
@@ -85,6 +98,7 @@ cacheMerchant merchant = do
   let idKey = makeIdKey merchant.id
   Hedis.setExp idKey (coerce @Merchant @(MerchantD 'Unsafe) merchant) expTime
   Hedis.setExp (makeShortIdKey merchant.shortId) idKey expTime
+  Hedis.setExp (makeSubscriberIdKey merchant.subscriberId) idKey expTime
   whenJust ((,) <$> merchant.exoPhoneCountryCode <*> merchant.exoPhone) $ \(exoPhoneCountryCode, exoPhone) ->
     Hedis.setExp (makeExoPhoneKey exoPhoneCountryCode exoPhone) idKey expTime
 
@@ -98,6 +112,9 @@ makeIdKey id = "CachedQueries:Merchant:Id-" <> id.getId
 
 makeShortIdKey :: ShortId Merchant -> Text
 makeShortIdKey shortId = "CachedQueries:Merchant:ShortId-" <> shortId.getShortId
+
+makeSubscriberIdKey :: ShortId Subscriber -> Text
+makeSubscriberIdKey subscriberId = "CachedQueries:Merchant:SubscriberId-" <> subscriberId.getShortId
 
 makeExoPhoneKey :: Text -> Text -> Text
 makeExoPhoneKey countryCode phone = "CachedQueries:Merchant:ExoPhone-" <> countryCode <> phone

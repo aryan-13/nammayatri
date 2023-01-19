@@ -35,6 +35,7 @@ mkPersist
     MerchantT sql=merchant
       id Text
       shortId Text
+      subscriberId Text
       name Text
       exoPhone Text Maybe
       exoPhones (PostgresList Text)
@@ -78,6 +79,7 @@ instance TType MerchantT Domain.Merchant where
       Domain.Merchant
         { id = Id id,
           shortId = ShortId shortId,
+          subscriberId = ShortId subscriberId,
           registryUrl = regUrl,
           gatewayUrl = gwUrl,
           exoPhones = unPostgresList exoPhones,
@@ -89,6 +91,7 @@ instance TType MerchantT Domain.Merchant where
     MerchantT
       { id = getId id,
         shortId = getShortId shortId,
+        subscriberId = getShortId subscriberId,
         fcmUrl = showBaseUrl fcmUrl,
         fcmRedisTokenKeyPrefix = fcmTokenKeyPrefix,
         originRestriction = origin,
