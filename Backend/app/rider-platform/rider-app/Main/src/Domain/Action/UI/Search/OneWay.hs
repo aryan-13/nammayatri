@@ -54,7 +54,6 @@ data OneWaySearchRes = OneWaySearchRes
     destination :: DSearch.SearchReqLocation,
     searchId :: Id DSearchReq.SearchRequest,
     now :: UTCTime,
-    --TODO: This supposed to be temporary solution. Check if we still need it
     gatewayUrl :: BaseUrl,
     searchRequestExpiry :: UTCTime
   }

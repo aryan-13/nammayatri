@@ -92,7 +92,6 @@ data AppCfg = AppCfg
     signingKey :: PrivateKey,
     signatureExpiry :: Seconds,
     disableSignatureAuth :: Bool,
-    gatewayUrl :: BaseUrl,
     encTools :: EncTools,
     kafkaProducerCfg :: KafkaProducerCfg,
     selfUIUrl :: BaseUrl,
@@ -131,7 +130,6 @@ data AppEnv = AppEnv
     signingKey :: PrivateKey,
     signatureExpiry :: Seconds,
     disableSignatureAuth :: Bool,
-    gatewayUrl :: BaseUrl,
     encTools :: EncTools,
     selfUIUrl :: BaseUrl,
     hedisEnv :: HedisEnv,
@@ -195,9 +193,9 @@ instance AuthenticatingEntity AppEnv where
   getSignatureExpiry = (.signatureExpiry)
 
 instance Registry Flow where
-  registryLookup registryUrl =
+  registryLookup =
     Registry.withSubscriberCache $
-      Registry.whitelisting isWhiteListed <=< Registry.registryLookup registryUrl
+      Registry.whitelisting isWhiteListed <=< Registry.registryLookup
     where
       isWhiteListed subscriberId = findByShortId (ShortId subscriberId) <&> isNothing
 
