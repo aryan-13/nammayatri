@@ -15,6 +15,8 @@
 module Domain.Action.Beckn.Search where
 
 import Data.List
+import Data.Set (Set)
+import Data.Time.Calendar (DayOfWeek)
 import Domain.Types.FarePolicy.FarePolicy (FarePolicy)
 import qualified Domain.Types.Merchant as DM
 import qualified Domain.Types.SearchRequest.SearchReqLocation as DLoc
@@ -38,13 +40,25 @@ import Tools.Error
 import qualified Tools.Maps as Maps
 import qualified Tools.Metrics.ARDUBPPMetrics as Metrics
 
+data Pickup
+  = OneTime UTCTime
+  | Recurring UTCTime (Set DayOfWeek)
+
+pickupTime :: Pickup -> UTCTime
+pickupTime (Recurring time _) = time
+pickupTime (OneTime time) = time
+
+isRecurringPickup :: Pickup -> Bool
+isRecurringPickup (Recurring _ _) = True
+isRecurringPickup _ = False
+
 data DSearchReq = DSearchReq
   { messageId :: Text,
     transactionId :: Text,
     bapId :: Text,
     bapUri :: BaseUrl,
     pickupLocation :: DLoc.SearchReqLocationAPIEntity,
-    pickupTime :: UTCTime,
+    pickup :: Pickup,
     dropLocation :: DLoc.SearchReqLocationAPIEntity,
     routeInfo :: Maybe Maps.RouteInfo
   }
@@ -66,7 +80,8 @@ data EstimateItem = EstimateItem
     estimateBreakupList :: [BreakupItem],
     nightShiftRate :: Maybe NightShiftRate,
     waitingCharges :: WaitingCharges,
-    driversLatLong :: [LatLong]
+    driversLatLong :: [LatLong],
+    recurring :: Bool
   }
 
 data WaitingCharges = WaitingCharges
@@ -159,7 +174,7 @@ handler merchantId sReq = do
 
         let listOfProtoQuotes = nubBy ((==) `on` (.variant)) driverPool
             filteredProtoQuotes = zipMatched farePolicies listOfProtoQuotes
-        estimates <- mapM (mkEstimate org sReq.pickupTime result.distance driverPool) filteredProtoQuotes
+        estimates <- mapM (mkEstimate org sReq.pickup result.distance driverPool) filteredProtoQuotes
         logDebug $ "bap uri: " <> show sReq.bapUri
         return estimates
 
@@ -183,13 +198,13 @@ handler merchantId sReq = do
 mkEstimate ::
   (HasCacheConfig r, EsqDBFlow m r, HedisFlow m r) =>
   DM.Merchant ->
-  UTCTime ->
+  Pickup ->
   Meters ->
   [DriverPoolResult] ->
   (FarePolicy, DriverPoolResult) ->
   m EstimateItem
-mkEstimate org startTime dist driverpool (farePolicy, driverMetadata) = do
-  fareParams <- calculateFare org.id farePolicy dist startTime Nothing
+mkEstimate org pickup dist driverpool (farePolicy, driverMetadata) = do
+  fareParams <- calculateFare org.id farePolicy dist (pickupTime pickup) Nothing
   let baseFare = fareSum fareParams
       currency = "INR"
       estimateBreakups = mkBreakupListItems (BreakupPrice currency) BreakupItem farePolicy
@@ -216,7 +231,8 @@ mkEstimate org startTime dist driverpool (farePolicy, driverMetadata) = do
           WaitingCharges
             { waitingTimeEstimatedThreshold = farePolicy.waitingTimeEstimatedThreshold,
               waitingChargePerMin = farePolicy.waitingChargePerMin
-            }
+            },
+        recurring = isRecurringPickup pickup
       }
 
 mkBreakupListItems ::

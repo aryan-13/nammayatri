@@ -92,7 +92,8 @@ mkOneWayItem DOneWaySearch.QuoteInfo {..} offer_id fulfillment_id = do
             drivers_location = []
           }
   OnSearch.Item
-    { category_id = OnSearch.ONE_WAY_TRIP,
+    { id = Nothing,
+      category_id = OnSearch.ONE_WAY_TRIP,
       base_distance = Nothing,
       base_duration = Nothing,
       quote_terms = [],
@@ -112,7 +113,7 @@ mkOneWayFulfillment DOneWaySearch.QuoteInfo {..} fulfillmentId = do
                 { gps = mkGps fromLocation,
                   address = Nothing
                 },
-            time = OnSearch.TimeTimestamp startTime
+            time = OnSearch.Time startTime Nothing
           },
       end =
         Just $
@@ -148,7 +149,7 @@ mkRentalFulfillment DRentalSearch.QuoteInfo {..} fulfillmentId = do
                 { gps = mkGps fromLocation,
                   address = Nothing
                 },
-            time = OnSearch.TimeTimestamp startTime
+            time = OnSearch.Time startTime Nothing
           },
       end = Nothing
     }

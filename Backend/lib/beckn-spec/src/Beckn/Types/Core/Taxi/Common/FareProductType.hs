@@ -26,6 +26,7 @@ data FareProductType
   | RENTAL_TRIP
   | DRIVER_OFFER_ESTIMATE
   | DRIVER_OFFER
+  | RECURRING_TRIP
   deriving
     ( Eq,
       Ord,

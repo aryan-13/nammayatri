@@ -34,8 +34,14 @@ buildSearchReq subscriber req = do
   let context = req.context
   validateContext Context.SEARCH context
   let intent = req.message.intent
-  let pickup = intent.fulfillment.start
-  let dropOff = fromJust intent.fulfillment.end
+      pickup = intent.fulfillment.start
+      pickupTime =
+        case pickup.time.days of
+          Just days ->
+            DSearch.Recurring pickup.time.timestamp days
+          Nothing ->
+            DSearch.OneTime pickup.time.timestamp
+      dropOff = fromJust intent.fulfillment.end
   unless (subscriber.subscriber_id == context.bap_id) $
     throwError (InvalidRequest "Invalid bap_id")
   unless (subscriber.subscriber_url == context.bap_uri) $
@@ -49,7 +55,7 @@ buildSearchReq subscriber req = do
         bapId = subscriber.subscriber_id,
         bapUri = subscriber.subscriber_url,
         pickupLocation = mkLocation pickup.location,
-        pickupTime = pickup.time.timestamp,
+        pickup = pickupTime,
         dropLocation = mkLocation dropOff.location,
         routeInfo = req.message.routeInfo
       }

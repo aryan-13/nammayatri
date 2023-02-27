@@ -12,11 +12,19 @@
  the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 -}
 
-module Beckn.ACL.Search (buildRentalSearchReq, buildOneWaySearchReq) where
+module Beckn.ACL.Search
+  ( buildRentalSearchReq,
+    buildOneWaySearchReq,
+    buildRecurringSearchReq,
+  )
+where
 
 import qualified Beckn.Types.Core.Taxi.Search as Search
+import qualified Data.Set as S
+import Data.Time.Calendar (DayOfWeek)
 import qualified Domain.Action.UI.Search.Common as DSearchCommon
 import qualified Domain.Action.UI.Search.OneWay as DOneWaySearch
+import qualified Domain.Action.UI.Search.Recurring as DRecurringSearch
 import qualified Domain.Action.UI.Search.Rental as DRentalSearch
 import qualified Domain.Types.SearchRequest as DSearchReq
 import Environment
@@ -33,41 +41,57 @@ buildOneWaySearchReq ::
   DOneWaySearch.OneWaySearchRes ->
   Maybe Maps.RouteInfo ->
   m (BecknReq Search.SearchMessage)
-buildOneWaySearchReq DOneWaySearch.OneWaySearchRes {..} = buildSearchReq origin (Just destination) searchId now
+buildOneWaySearchReq DOneWaySearch.OneWaySearchRes {..} routeInfo =
+  buildSearchReq origin (Just destination) searchId (OnlyTime now) routeInfo
 
 buildRentalSearchReq ::
   (HasFlowEnv m r ["bapSelfIds" ::: BAPs Text, "bapSelfURIs" ::: BAPs BaseUrl]) =>
   DRentalSearch.RentalSearchRes ->
   m (BecknReq Search.SearchMessage)
-buildRentalSearchReq DRentalSearch.RentalSearchRes {..} = buildSearchReq origin Nothing searchId startTime Nothing
+buildRentalSearchReq DRentalSearch.RentalSearchRes {..} =
+  buildSearchReq origin Nothing searchId (OnlyTime startTime) Nothing
+
+buildRecurringSearchReq ::
+  (HasFlowEnv m r ["bapSelfIds" ::: BAPs Text, "bapSelfURIs" ::: BAPs BaseUrl]) =>
+  DRecurringSearch.RecurringSearchRes ->
+  m (BecknReq Search.SearchMessage)
+buildRecurringSearchReq DRecurringSearch.RecurringSearchRes {..} =
+  buildSearchReq origin (Just destination) searchId (TimeAndDays initialRideTime scheduleDays) Nothing
+
+data SearchTimeParams
+  = OnlyTime UTCTime
+  | TimeAndDays UTCTime (S.Set DayOfWeek)
 
 buildSearchReq ::
   (HasFlowEnv m r ["bapSelfIds" ::: BAPs Text, "bapSelfURIs" ::: BAPs BaseUrl]) =>
   DSearchCommon.SearchReqLocation ->
   Maybe DSearchCommon.SearchReqLocation ->
   Id DSearchReq.SearchRequest ->
-  UTCTime ->
+  SearchTimeParams ->
   Maybe Maps.RouteInfo ->
   m (BecknReq Search.SearchMessage)
-buildSearchReq origin mbDestination searchId startTime mbRouteInfo = do
+buildSearchReq origin mbDestination searchId searchTime mbRouteInfo = do
   let messageId = getId searchId
   bapURIs <- asks (.bapSelfURIs)
   bapIDs <- asks (.bapSelfIds)
   context <- buildTaxiContext Context.SEARCH messageId (Just messageId) bapIDs.cabs bapURIs.cabs Nothing Nothing
-  let intent = mkIntent origin mbDestination startTime
-  let searchMessage = Search.SearchMessage intent mbRouteInfo
-  pure $ BecknReq context searchMessage
+  let intent = mkIntent origin mbDestination searchTime
+  pure $ BecknReq context $ Search.SearchMessage intent mbRouteInfo
 
 mkIntent ::
   DSearchCommon.SearchReqLocation ->
   Maybe DSearchCommon.SearchReqLocation ->
-  UTCTime ->
+  SearchTimeParams ->
   Search.Intent
-mkIntent origin mbDestination startTime = do
+mkIntent origin mbDestination searchTime = do
   let startLocation =
         Search.StartInfo
           { location = mkLocation origin,
-            time = Search.TimeTimestamp startTime
+            time = case searchTime of
+              OnlyTime startTime ->
+                Search.Time startTime Nothing
+              TimeAndDays startTime days ->
+                Search.Time startTime (Just days)
           }
       mkStopInfo destination =
         Search.StopInfo

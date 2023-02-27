@@ -16,8 +16,12 @@ module Beckn.ACL.OnSearch where
 
 import qualified Beckn.Types.Core.Taxi.Common.VehicleVariant as Common
 import qualified Beckn.Types.Core.Taxi.OnSearch as OS
-import Beckn.Types.Core.Taxi.OnSearch.Item (BreakupItem (..), BreakupPrice (..))
+import Beckn.Types.Core.Taxi.OnSearch.Item
+  ( BreakupItem (..),
+    BreakupPrice (..),
+  )
 import qualified Domain.Action.Beckn.Search as DSearch
+import qualified Domain.Types.ItemId as ItemId
 import qualified Domain.Types.Vehicle.Variant as Variant
 import Kernel.Prelude
 
@@ -25,6 +29,16 @@ autoOneWayCategory :: OS.Category
 autoOneWayCategory =
   OS.Category
     { id = OS.DRIVER_OFFER_ESTIMATE,
+      descriptor =
+        OS.Descriptor
+          { name = ""
+          }
+    }
+
+scheduledRideCategory :: OS.Category
+scheduledRideCategory =
+  OS.Category
+    { id = OS.RECURRING_TRIP,
       descriptor =
         OS.Descriptor
           { name = ""
@@ -58,7 +72,7 @@ mkOnSearchMessage res@DSearch.DSearchRes {..} = do
           { id = provider.subscriberId.getShortId,
             descriptor = OS.Descriptor {name = provider.name},
             locations = [],
-            categories = [autoOneWayCategory],
+            categories = [autoOneWayCategory, scheduledRideCategory],
             items,
             offers = [],
             add_ons = [],
@@ -81,7 +95,7 @@ mkStartInfo dReq =
           { gps = OS.Gps {lat = dReq.fromLocation.lat, lon = dReq.fromLocation.lon},
             address = Nothing
           },
-      time = OS.TimeTimestamp dReq.now
+      time = OS.Time dReq.now Nothing
     }
 
 mkStopInfo :: DSearch.DSearchRes -> OS.StopInfo
@@ -117,7 +131,14 @@ mkQuoteEntities start end it = do
           }
       item =
         OS.Item
-          { category_id = autoOneWayCategory.id,
+          { id =
+              if it.recurring
+                then Just $ ItemId.toText $ ItemId.RecurringTrip it.vehicleVariant
+                else Just $ ItemId.toText $ ItemId.OneTimeTrip it.vehicleVariant,
+            category_id =
+              if it.recurring
+                then scheduledRideCategory.id
+                else autoOneWayCategory.id,
             fulfillment_id = fulfillment.id,
             offer_id = Nothing,
             price =

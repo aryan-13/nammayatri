@@ -90,7 +90,7 @@ mkOrder req autoAssignEnabled = do
                                 area_code = from.address.areaCode
                               }
                       },
-                  time = Select.TimeTimestamp req.searchRequest.startTime
+                  time = Select.Time req.searchRequest.startTime Nothing
                 },
             end =
               mbTo <&> \to ->

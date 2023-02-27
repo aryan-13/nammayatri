@@ -16,7 +16,10 @@
 
 module Domain.Types.Quote where
 
-import Data.OpenApi (ToSchema (..), genericDeclareNamedSchema)
+import Data.OpenApi
+  ( ToSchema (..),
+    genericDeclareNamedSchema,
+  )
 import qualified Domain.Types.DriverOffer as DDriverOffer
 import qualified Domain.Types.RentalSlab as DRentalSlab
 import qualified Domain.Types.SearchRequest as DSearchRequest
@@ -77,6 +80,7 @@ data QuoteAPIEntity = QuoteAPIEntity
 -- do not change constructor names without changing fareProductConstructorModifier
 data QuoteAPIDetails
   = OneWayAPIDetails OneWayQuoteAPIDetails
+  | RecurringAPIDetails RecurringQuoteAPIDetails
   | RentalAPIDetails DRentalSlab.RentalSlabAPIEntity
   | DriverOfferAPIDetails DDriverOffer.DriverOfferAPIEntity
   deriving (Show, Generic)
@@ -91,6 +95,11 @@ instance ToSchema QuoteAPIDetails where
   declareNamedSchema = genericDeclareNamedSchema S.fareProductSchemaOptions
 
 newtype OneWayQuoteAPIDetails = OneWayQuoteAPIDetails
+  { distanceToNearestDriver :: HighPrecMeters
+  }
+  deriving (Generic, FromJSON, ToJSON, Show, ToSchema)
+
+newtype RecurringQuoteAPIDetails = RecurringQuoteAPIDetails
   { distanceToNearestDriver :: HighPrecMeters
   }
   deriving (Generic, FromJSON, ToJSON, Show, ToSchema)

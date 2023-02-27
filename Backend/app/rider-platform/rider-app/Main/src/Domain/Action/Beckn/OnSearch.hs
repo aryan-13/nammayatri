@@ -19,6 +19,7 @@ module Domain.Action.Beckn.OnSearch
     QuoteInfo (..),
     QuoteDetails (..),
     OneWayQuoteDetails (..),
+    RecurringQuoteDetails (..),
     RentalQuoteDetails (..),
     EstimateBreakupInfo (..),
     BreakupPriceInfo (..),
@@ -28,9 +29,11 @@ module Domain.Action.Beckn.OnSearch
   )
 where
 
+import qualified Data.Either as E
 import qualified Domain.Types.Estimate as DEstimate
 import qualified Domain.Types.Person.PersonFlowStatus as DPFS
 import qualified Domain.Types.Quote as DQuote
+import qualified Domain.Types.RecurringQuote as DRecurringQuote
 import qualified Domain.Types.RentalSlab as DRentalSlab
 import qualified Domain.Types.SearchRequest as DSearchReq
 import qualified Domain.Types.TripTerms as DTripTerms
@@ -111,6 +114,7 @@ data QuoteInfo = QuoteInfo
 data QuoteDetails
   = OneWayDetails OneWayQuoteDetails
   | RentalDetails RentalQuoteDetails
+  | RecurringDetails RecurringQuoteDetails
 
 newtype OneWayQuoteDetails = OneWayQuoteDetails
   { distanceToNearestDriver :: HighPrecMeters
@@ -119,6 +123,10 @@ newtype OneWayQuoteDetails = OneWayQuoteDetails
 data RentalQuoteDetails = RentalQuoteDetails
   { baseDistance :: Kilometers,
     baseDuration :: Hours
+  }
+
+newtype RecurringQuoteDetails = RecurringQuoteDetails
+  { distanceToNearestDriver :: HighPrecMeters
   }
 
 onSearch ::
@@ -143,7 +151,7 @@ onSearchService transactionId registryUrl DOnSearchReq {..} = do
 
   now <- getCurrentTime
   estimates <- traverse (buildEstimate requestId providerInfo now) estimatesInfo
-  quotes <- traverse (buildQuote requestId providerInfo now) quotesInfo
+  (quotes, recurringQuotes {- TODO save recurring quotes in DB -}) <- E.partitionEithers <$> traverse (buildQuote requestId providerInfo now) quotesInfo
   DB.runTransaction do
     QEstimate.createMany estimates
     QQuote.createMany quotes
@@ -194,30 +202,49 @@ buildQuote ::
   ProviderInfo ->
   UTCTime ->
   QuoteInfo ->
-  m DQuote.Quote
+  m (Either DQuote.Quote DRecurringQuote.RecurringQuote)
 buildQuote requestId providerInfo now QuoteInfo {..} = do
   uid <- generateGUID
+  uid' <- generateGUID
   tripTerms <- buildTripTerms descriptions
-  quoteDetails' <- case quoteDetails of
+  eQuoteDetails <- case quoteDetails of
     OneWayDetails oneWayDetails ->
-      pure . DQuote.OneWayDetails $ mkOneWayQuoteDetails oneWayDetails
+      pure . Left $ DQuote.OneWayDetails $ mkOneWayQuoteDetails oneWayDetails
     RentalDetails rentalSlab -> do
-      DQuote.RentalDetails <$> buildRentalSlab rentalSlab
+      Left . DQuote.RentalDetails <$> buildRentalSlab rentalSlab
+    RecurringDetails recurringDetails ->
+      pure . Right $ mkRecurringQuoteDetails recurringDetails
   pure
-    DQuote.Quote
-      { id = uid,
-        providerMobileNumber = providerInfo.mobileNumber,
-        providerName = providerInfo.name,
-        providerCompletedRidesCount = providerInfo.ridesCompleted,
-        providerId = providerInfo.providerId,
-        providerUrl = providerInfo.url,
-        createdAt = now,
-        quoteDetails = quoteDetails',
-        ..
-      }
+    case eQuoteDetails of
+      Left nonRecurringQuoteDetails ->
+        Left $
+          DQuote.Quote
+            { id = uid,
+              providerMobileNumber = providerInfo.mobileNumber,
+              providerName = providerInfo.name,
+              providerCompletedRidesCount = providerInfo.ridesCompleted,
+              providerId = providerInfo.providerId,
+              providerUrl = providerInfo.url,
+              createdAt = now,
+              quoteDetails = nonRecurringQuoteDetails,
+              ..
+            }
+      Right recurringQuoteDetails ->
+        Right $
+          DRecurringQuote.RecurringQuote
+            { id = uid',
+              providerId = providerInfo.providerId,
+              providerUrl = providerInfo.url,
+              quoteDetails = recurringQuoteDetails,
+              createdAt = now,
+              ..
+            }
 
 mkOneWayQuoteDetails :: OneWayQuoteDetails -> DQuote.OneWayQuoteDetails
 mkOneWayQuoteDetails OneWayQuoteDetails {..} = DQuote.OneWayQuoteDetails {..}
+
+mkRecurringQuoteDetails :: RecurringQuoteDetails -> DRecurringQuote.RecurringQuoteDetails
+mkRecurringQuoteDetails RecurringQuoteDetails {..} = DRecurringQuote.RecurringQuoteDetails {..}
 
 buildRentalSlab :: MonadFlow m => RentalQuoteDetails -> m DRentalSlab.RentalSlab
 buildRentalSlab RentalQuoteDetails {..} = do
