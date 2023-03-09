@@ -48,6 +48,42 @@ instance TEntityKey RecurringBookingT where
   fromKey (RecurringBookingTKey _id) = Id _id
   toKey (Id id) = RecurringBookingTKey id
 
+instance TType RecurringBookingT Domain.SimpleRecurringBooking where
+  fromTType (RecurringBookingT {..}) = do
+    pBapUrl <- parseBaseUrl bapUri
+    let (JSONB scheduledDays') = scheduledDays
+    pure $
+      Domain.SimpleRecurringBooking
+        { id = Id id,
+          scheduledDays = scheduledDays',
+          startDate = startDate,
+          endDate = endDate,
+          pickupTime = pickupTime,
+          status = status,
+          providerId = providerId,
+          bapId = bapId,
+          bapUri = pBapUrl,
+          farePolicy = fromKey farePolicyId,
+          fromLocation = fromKey fromLocationId,
+          toLocation = fromKey toLocationId
+        }
+
+  toTType booking =
+    RecurringBookingT
+      { id = getId booking.id,
+        scheduledDays = JSONB booking.scheduledDays,
+        startDate = booking.startDate,
+        endDate = booking.endDate,
+        pickupTime = booking.pickupTime,
+        status = booking.status,
+        providerId = booking.providerId,
+        farePolicyId = toKey booking.farePolicy,
+        bapId = booking.bapId,
+        bapUri = showBaseUrl booking.bapUri,
+        toLocationId = toKey booking.toLocation,
+        fromLocationId = toKey booking.fromLocation
+      }
+
 type FullRecurringBookingT = (RecurringBookingT, SLoc.BookingLocationT, SLoc.BookingLocationT)
 
 instance TType FullRecurringBookingT Domain.RecurringBooking where

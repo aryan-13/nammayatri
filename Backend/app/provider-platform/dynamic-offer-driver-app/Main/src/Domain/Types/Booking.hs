@@ -48,6 +48,28 @@ instance ToHttpApiData BookingStatus where
   toQueryParam = toUrlPiece
   toHeader = BSL.toStrict . encode
 
+data SimpleBooking = SimpleBooking
+  { id :: Id Booking,
+    quoteId :: Id DriverQuote,
+    status :: BookingStatus,
+    providerId :: Id DM.Merchant, -- FIXME merchantId
+    bapId :: Text,
+    bapUri :: BaseUrl,
+    startTime :: UTCTime,
+    riderId :: Maybe (Id DRD.RiderDetails),
+    fromLocation :: Id DLoc.BookingLocation,
+    toLocation :: Id DLoc.BookingLocation,
+    vehicleVariant :: DVeh.Variant,
+    estimatedDistance :: Meters,
+    estimatedFare :: Money,
+    estimatedDuration :: Seconds,
+    fareParams :: Id FareParameters,
+    riderName :: Maybe Text,
+    createdAt :: UTCTime,
+    updatedAt :: UTCTime
+  }
+  deriving (Generic)
+
 data Booking = Booking
   { id :: Id Booking,
     quoteId :: Id DriverQuote,

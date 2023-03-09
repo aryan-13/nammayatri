@@ -25,7 +25,9 @@ import Kernel.Types.Id
 import Kernel.Utils.Dhall (FromDhall)
 import Lib.Scheduler
 
-data AllocatorJobType = SendSearchRequestToDriver
+data AllocatorJobType
+  = SendSearchRequestToDriver
+  | UpdateRecurringBookingTimetable
   deriving (Generic, FromDhall, Eq, Ord, Show, Read, FromJSON, ToJSON)
 
 genSingletons [''AllocatorJobType]
@@ -43,3 +45,5 @@ data SendSearchRequestToDriverJobData = SendSearchRequestToDriverJobData
   deriving (Generic, Show, Eq, FromJSON, ToJSON)
 
 type instance JobContent 'SendSearchRequestToDriver = SendSearchRequestToDriverJobData
+
+type instance JobContent 'UpdateRecurringBookingTimetable = ()
