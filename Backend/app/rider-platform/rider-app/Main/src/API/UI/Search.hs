@@ -75,7 +75,7 @@ type API =
 handler :: FlowServer API
 handler = search
 
-data SearchReq = OneWaySearch DOneWaySearch.OneWaySearchReq | RentalSearch DRentalSearch.RentalSearchReq
+data SearchReq = OneWaySearch DOneWaySearch.OneWaySearchReq | RentalSearch DRentalSearch.RentalSearchReq | OneWayOTPSearch DOneWaySearch.OneWaySearchReq
   deriving (Generic, Show)
 
 instance ToJSON SearchReq where
@@ -121,6 +121,7 @@ search personId req mbBundleVersion mbClientVersion = withFlowHandlerAPI . withP
   (searchId, searchExpiry, routeInfo) <- case req of
     OneWaySearch oneWay -> oneWaySearch personId mbBundleVersion mbClientVersion oneWay
     RentalSearch rental -> rentalSearch personId mbBundleVersion mbClientVersion rental
+    OneWayOTPSearch oneWayOtp -> oneWaySearch personId mbBundleVersion mbClientVersion oneWayOtp
   return $ SearchRes searchId searchExpiry routeInfo
 
 oneWaySearch ::

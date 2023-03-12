@@ -17,9 +17,14 @@ module Domain.Action.Beckn.Search where
 import Data.List (elemIndex, nubBy)
 import Domain.Types.FarePolicy.FarePolicy (FarePolicy)
 import qualified Domain.Types.Merchant as DM
+
+import qualified Domain.Types.SearchRequestSpecialZone as DSRSZ
+import qualified Domain.Types.QuoteSpecialZone as DQuoteSpecialZone
+import qualified Domain.Types.Vehicle as DVeh
 import qualified Domain.Types.SearchRequest.SearchReqLocation as DLoc
 import Domain.Types.Vehicle.Variant as Variant
 import Environment
+import EulerHS.Prelude (whenJustM)
 import Kernel.External.Maps.Google.PolyLinePoints
 import Kernel.Prelude
 import Kernel.Serviceability
@@ -28,15 +33,19 @@ import Kernel.Types.Common
 import Kernel.Types.Id
 import Kernel.Utils.Common
 import qualified SharedLogic.CacheDistance as CD
+import qualified Kernel.Storage.Esqueleto as Esq
 import SharedLogic.DriverPool hiding (lat, lon)
 import SharedLogic.FareCalculator
 import Storage.CachedQueries.CacheConfig
 import qualified Storage.CachedQueries.FarePolicy.FarePolicy as FarePolicyS
 import qualified Storage.CachedQueries.Merchant as CQM
 import qualified Storage.Queries.Geometry as QGeometry
+import qualified Storage.Queries.SearchRequestSpecialZone as QSearchRequestSpecialZone
+import qualified Storage.Queries.QuoteSpecialZone as QQuoteSpecialZone
 import Tools.Error
 import qualified Tools.Maps as Maps
 import qualified Tools.Metrics.ARDUBPPMetrics as Metrics
+import Domain.Types.FareParameters
 
 data DSearchReq = DSearchReq
   { messageId :: Text,
@@ -49,15 +58,24 @@ data DSearchReq = DSearchReq
     routeInfo :: Maybe Maps.RouteInfo
   }
 
+data SpecialZoneQuoteInfo = SpecialZoneQuoteInfo
+  { quoteId :: Id DQuoteSpecialZone.QuoteSpecialZone,
+    vehicleVariant :: DVeh.Variant,
+    estimatedFare :: Money,
+    -- estimatedTotalFare :: Money,
+    fromLocation :: LatLong,
+    toLocation :: LatLong,
+    startTime :: UTCTime
+  }
 data DSearchRes = DSearchRes
   { provider :: DM.Merchant,
     fromLocation :: DLoc.SearchReqLocation,
     toLocation :: DLoc.SearchReqLocation,
     now :: UTCTime,
-    estimateList :: [EstimateItem],
+    estimateList :: Maybe [EstimateItem],
+    specialQuoteList :: Maybe [SpecialZoneQuoteInfo],
     searchMetricsMVar :: Metrics.SearchMetricsMVar
   }
-
 data EstimateItem = EstimateItem
   { vehicleVariant :: Variant.Variant,
     distanceToPickup :: Meters,
@@ -104,6 +122,9 @@ data DistanceAndDuration = DistanceAndDuration
     duration :: Seconds
   }
 
+isSpecialZone :: Bool
+isSpecialZone = True
+
 getDistanceAndDuration :: Id DM.Merchant -> DLoc.SearchReqLocation -> DLoc.SearchReqLocation -> Maybe Maps.RouteInfo -> Flow DistanceAndDuration
 getDistanceAndDuration merchantId fromLocation toLocation routeInfo = case routeInfo of
   Just (Maps.RouteInfo (Just duration) (Just distance) _ _ _) -> return $ DistanceAndDuration {distance, duration}
@@ -133,28 +154,57 @@ handler merchantId sReq = do
   result <- getDistanceAndDuration merchantId fromLocation toLocation sReq.routeInfo
   CD.cacheDistance sReq.transactionId (result.distance, result.duration)
   logDebug $ "distance: " <> show result.distance
-
   allFarePolicies <- FarePolicyS.findAllByMerchantId org.id (Just result.distance)
   let farePolicies = filter (checkTripConstraints result.distance) allFarePolicies
 
-  estimates <-
-    if null farePolicies
-      then do
-        logDebug "Trip doesnot match any fare policy constraints."
-        return []
-      else do
-        driverPoolCfg <- getDriverPoolConfig result.distance
-        driverPool <- calculateDriverPool Estimate driverPoolCfg Nothing pickupLatLong org.id True Nothing
+  (quotes :: Maybe [SpecialZoneQuoteInfo], estimates':: Maybe [EstimateItem]) <- 
+    if isSpecialZone then do
+      whenJustM
+        (QSearchRequestSpecialZone.findByMsgIdAndBapIdAndBppId sReq.messageId sReq.bapId merchantId)
+        (\_ -> throwError $ InvalidRequest "Duplicate Search request")
+      searchRequestSpecialZone <- buildSearchRequestSpecialZone sReq merchantId fromLocation toLocation result.distance result.duration
+      Esq.runTransaction $ do
+        QSearchRequestSpecialZone.create searchRequestSpecialZone
+      now <- getCurrentTime
+      let listOfVehicleVariants =
+            catMaybes $
+              everyPossibleVariant <&> \var ->
+                find ((== var) . (.vehicleVariant)) farePolicies
+      listOfSpecialZoneQuotes <-
+        for listOfVehicleVariants $ \farePolicy -> do
+          -- calculateFare org.id farePolicy dist startTime Nothing
+          fareParams <- calculateFare org.id farePolicy result.distance sReq.pickupTime Nothing
+          buildSpecialZoneQuote
+            searchRequestSpecialZone
+            fareParams
+            org.id
+            result.distance
+            -- poolResult.distanceToPickup
+            farePolicy.vehicleVariant
+            result.duration --estimatedRideFinishTime need to construct
+      Esq.runTransaction $
+        for_ listOfSpecialZoneQuotes QQuoteSpecialZone.create
+      pure (Just (mkQuoteInfo fromLocation toLocation now <$> listOfSpecialZoneQuotes), Nothing)
+    -- pure ()
+    else do
+      estimates <-
+        if null farePolicies
+          then do
+            logDebug "Trip doesnot match any fare policy constraints."
+            return []
+          else do
+            driverPoolCfg <- getDriverPoolConfig result.distance
+            driverPool <- calculateDriverPool Estimate driverPoolCfg Nothing pickupLatLong org.id True Nothing
 
-        logDebug $ "Search handler: driver pool " <> show driverPool
+            logDebug $ "Search handler: driver pool " <> show driverPool
 
-        let listOfProtoQuotes = nubBy ((==) `on` (.variant)) driverPool
-            filteredProtoQuotes = zipMatched farePolicies listOfProtoQuotes
-        estimates <- mapM (buildEstimate org sReq.pickupTime result.distance driverPool) filteredProtoQuotes
-        logDebug $ "bap uri: " <> show sReq.bapUri
-        return estimates
-
-  buildSearchRes org fromLocation toLocation estimates searchMetricsMVar
+            let listOfProtoQuotes = nubBy ((==) `on` (.variant)) driverPool
+                filteredProtoQuotes = zipMatched farePolicies listOfProtoQuotes
+            estimates <- mapM (buildEstimate org sReq.pickupTime result.distance driverPool) filteredProtoQuotes
+            logDebug $ "bap uri: " <> show sReq.bapUri
+            return estimates
+      return (Nothing, Just estimates)
+  buildSearchRes org fromLocation toLocation estimates' quotes searchMetricsMVar
   where
     checkTripConstraints tripDistance fp =
       let cond1 = (<= tripDistance) <$> fp.minAllowedTripDistance
@@ -251,10 +301,11 @@ buildSearchRes ::
   DM.Merchant ->
   DLoc.SearchReqLocation ->
   DLoc.SearchReqLocation ->
-  [EstimateItem] ->
+  Maybe [EstimateItem] ->
+  Maybe [SpecialZoneQuoteInfo] ->
   Metrics.SearchMetricsMVar ->
   m DSearchRes
-buildSearchRes org fromLocation toLocation estimateList searchMetricsMVar = do
+buildSearchRes org fromLocation toLocation estimateList specialQuoteList searchMetricsMVar = do
   now <- getCurrentTime
   pure $
     DSearchRes
@@ -263,5 +314,97 @@ buildSearchRes org fromLocation toLocation estimateList searchMetricsMVar = do
         fromLocation,
         toLocation,
         estimateList,
+        specialQuoteList,
         searchMetricsMVar
       }
+
+
+buildSearchRequestSpecialZone ::
+  ( MonadGuid m,
+    MonadTime m,
+    MonadReader r m,
+  HasField "searchRequestExpirationSeconds" r NominalDiffTime
+  ) =>
+  DSearchReq ->
+  Id DM.Merchant ->
+  DLoc.SearchReqLocation ->
+  DLoc.SearchReqLocation ->
+  Meters ->
+  Seconds -> 
+  m DSRSZ.SearchRequestSpecialZone
+buildSearchRequestSpecialZone DSearchReq {..} providerId fromLocation toLocation estimatedDistance estimatedDuration = do
+  uuid <- generateGUID
+  now <- getCurrentTime
+  searchRequestExpirationSeconds <- asks (.searchRequestExpirationSeconds)
+  let validTill = searchRequestExpirationSeconds `addUTCTime` now
+  pure
+    DSRSZ.SearchRequestSpecialZone
+      { id = Id uuid,
+        startTime = pickupTime,
+        createdAt = now,
+        updatedAt = now,
+        ..
+      }
+
+buildSpecialZoneQuote ::
+  EsqDBFlow m r =>
+  DSRSZ.SearchRequestSpecialZone ->
+  FareParameters ->
+  Id DM.Merchant ->
+  Meters ->
+  -- Meters ->
+  DVeh.Variant ->
+  Seconds ->
+  m DQuoteSpecialZone.QuoteSpecialZone
+buildSpecialZoneQuote productSearchRequest fareParams transporterId distance vehicleVariant duration = do
+  quoteId <- Id <$> generateGUID
+  now <- getCurrentTime
+  let estimatedFare = fareSum fareParams
+      estimatedFinishTime = fromIntegral duration `addUTCTime` now
+      -- discount = fareParams.discount
+      -- estimatedTotalFare = fareSumWithDiscount fareParams
+  -- let oneWayQuoteDetails = DQuote.OneWayQuoteDetails {..}
+  pure
+    DQuoteSpecialZone.QuoteSpecialZone
+      { id = quoteId,
+        searchRequestId = productSearchRequest.id,
+        providerId = transporterId,
+        createdAt = now,
+        updatedAt = now,
+        validTill = now,
+        -- quoteDetails = DQuote.OneWayDetails oneWayQuoteDetails,
+        ..
+      }
+
+-- data QuoteSpecialZone = QuoteSpecialZone
+--   { id :: Id QuoteSpecialZone,
+--     -- status :: DriverQuoteStatus,
+--     searchRequestId :: Id SearchRequestSpecialZone,
+--     -- searchRequestForDriverId :: Maybe (Id SearchRequestForDriver),
+--     -- driverId :: Id Person,
+--     -- driverName :: Text,
+--     -- driverRating :: Maybe Centesimal,
+--     vehicleVariant :: Variant.Variant,
+--     distance :: Meters,
+--     estimatedFinishTime :: UTCTime,
+--     -- distanceToPickup :: Meters,
+--     -- durationToPickup :: Seconds,
+--     createdAt :: UTCTime,
+--     updatedAt :: UTCTime,
+--     validTill :: UTCTime,
+--     estimatedFare :: Money,
+--     fareParams :: Params.FareParameters
+--   }
+
+
+mkQuoteInfo :: DLoc.SearchReqLocation -> DLoc.SearchReqLocation -> UTCTime -> DQuoteSpecialZone.QuoteSpecialZone -> SpecialZoneQuoteInfo
+mkQuoteInfo fromLoc toLoc startTime DQuoteSpecialZone.QuoteSpecialZone {..} = do
+  let fromLocation = Maps.getCoordinates fromLoc
+      toLocation = Maps.getCoordinates toLoc
+      -- distanceToNearestDriver = case quoteDetails of
+      --   DQuote.OneWayDetails details -> DQuote.distanceToNearestDriver details
+      --   _ -> 0
+  SpecialZoneQuoteInfo
+    { quoteId = id,
+      ..
+    }

@@ -120,6 +120,9 @@ buildEstimateOrQuoteInfo item = do
       pure $ Right DOnSearch.QuoteInfo {..}
     OnSearch.DRIVER_OFFER_ESTIMATE -> pure $ Left DOnSearch.EstimateInfo {..}
     OnSearch.DRIVER_OFFER -> throwError $ InvalidRequest "DRIVER_OFFER supported in on_select, use DRIVER_OFFER_ESTIMATE"
+    OnSearch.ONE_WAY_SPECIAL_ZONE -> do
+      quoteDetails <- DOnSearch.OneWaySpecialZoneDetails <$> buildOneWaySpecialZoneQuoteDetails item
+      pure $ Right DOnSearch.QuoteInfo {..}
   where
     castVehicleVariant = \case
       OnSearch.SEDAN -> VehVar.SEDAN
@@ -138,6 +141,20 @@ buildOneWayQuoteDetails item = do
   pure
     DOnSearch.OneWayQuoteDetails
       { distanceToNearestDriver = realToFrac distanceToNearestDriver
+      }
+
+buildOneWaySpecialZoneQuoteDetails ::
+  (MonadThrow m, Log m) =>
+  OnSearch.Item ->
+  m DOnSearch.OneWaySpecialZoneQuoteDetails
+buildOneWaySpecialZoneQuoteDetails _ = do
+  -- distanceToNearestDriver <-
+  --   (item.tags >>= (.distance_to_nearest_driver))
+  --     & fromMaybeM (InvalidRequest "Trip type is ONE_WAY, but distanceToNearestDriver is Nothing")
+  pure
+    DOnSearch.OneWaySpecialZoneQuoteDetails
+      {
+        quoteType = "Special Zone Quote"
       }
 
 --FIXME remove round by using Kilometers and Hours in spec

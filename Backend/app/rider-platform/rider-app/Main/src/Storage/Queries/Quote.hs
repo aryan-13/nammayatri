@@ -37,6 +37,8 @@ createDetails = \case
     Esq.create' rentalSlabT
   DriverOfferDetailsT driverOfferT -> do
     Esq.create' driverOfferT
+  OneWaySpecialZoneDetailsT specialZoneQuoteT -> do
+    Esq.create' specialZoneQuoteT
 
 -- order of creating entites make sense!
 create :: Quote -> SqlDB ()

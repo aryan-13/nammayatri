@@ -42,6 +42,7 @@ buildFullQuote (quoteT@QuoteT {..}, mbTripTermsT, mbRentalSlab, mbDriverOffer) =
     ONE_WAY -> pure Quote.OneWayDetailsT
     RENTAL -> MaybeT $ pure (Quote.RentalDetailsT <$> mbRentalSlab)
     DRIVER_OFFER -> MaybeT $ pure (Quote.DriverOfferDetailsT <$> mbDriverOffer)
+    ONE_WAY_SPECIAL_ZONE -> pure Quote.OneWayDetailsT
   return $ extractSolidType @Quote (quoteT, mbTripTermsT, quoteDetailsT)
 
 buildFullBooking ::
@@ -53,6 +54,7 @@ buildFullBooking (bookingT@BookingT {..}, fromLocT, mbToLocT, mbTripTermsT, mbRe
     ONE_WAY -> MaybeT $ pure (Booking.OneWayDetailsT <$> mbToLocT)
     RENTAL -> MaybeT $ pure (Booking.RentalDetailsT <$> mbRentalSlab)
     DRIVER_OFFER -> MaybeT $ pure (Booking.DriverOfferDetailsT <$> mbToLocT)
+    ONE_WAY_SPECIAL_ZONE -> MaybeT $ pure (Booking.OneWaySpecialZoneDetailsT <$> mbToLocT)
   return $ extractSolidType @Booking (bookingT, fromLocT, mbTripTermsT, bookingDetails)
 
 buildFullEstimate ::

@@ -44,6 +44,7 @@ buildInitMessage res = do
         DConfirm.ConfirmOneWayDetails -> (Init.ONE_WAY_TRIP, Nothing, Nothing, Nothing)
         DConfirm.ConfirmRentalDetails r -> (Init.RENTAL_TRIP, Just r.baseDistance, Just r.baseDuration, Nothing)
         DConfirm.ConfirmAutoDetails bppQuoteId -> (Init.DRIVER_OFFER, Nothing, Nothing, Just bppQuoteId.getId)
+        DConfirm.ConfirmOneWaySpecialZoneDetails -> (Init.ONE_WAY_SPECIAL_ZONE, Nothing, Nothing, Nothing) --need to be  checked
   let vehicleVariant = castVehicleVariant res.vehicleVariant
   let itemCode =
         Init.ItemCode

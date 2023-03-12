@@ -31,6 +31,7 @@ import qualified Storage.Tabular.DriverOffer as SDriverOffer
 import qualified Storage.Tabular.RentalSlab as SRentalSlab
 import qualified Storage.Tabular.SearchRequest as SSearchRequest
 import qualified Storage.Tabular.TripTerms as STripTerms
+import qualified Storage.Tabular.SpecialZoneQuote as SSpecialZoneQuote
 
 mkPersist
   defaultSqlSettings
@@ -52,6 +53,7 @@ mkPersist
       tripTermsId STripTerms.TripTermsTId Maybe
       rentalSlabId SRentalSlab.RentalSlabTId Maybe
       driverOfferId SDriverOffer.DriverOfferTId Maybe
+      specialZoneQuoteId SSpecialZoneQuote.SpecialZoneQuoteTId Maybe
       createdAt UTCTime
       Primary id
       deriving Generic

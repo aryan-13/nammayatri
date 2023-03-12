@@ -35,6 +35,7 @@ import qualified Storage.Tabular.Quote as SQuote
 import qualified Storage.Tabular.RentalSlab as SRentalSlab
 import qualified Storage.Tabular.TripTerms as STripTerms
 import Tools.Error
+-- import Storage.Tabular.Quote.Instances (QuoteDetailsT(OneWaySpecialZoneDetailsT))
 
 derivePersistField "Domain.BookingStatus"
 
@@ -74,7 +75,7 @@ instance TEntityKey BookingT where
   fromKey (BookingTKey _id) = Id _id
   toKey (Id id) = BookingTKey id
 
-data BookingDetailsT = OneWayDetailsT SLoc.BookingLocationT | RentalDetailsT SRentalSlab.RentalSlabT | DriverOfferDetailsT SLoc.BookingLocationT
+data BookingDetailsT = OneWayDetailsT SLoc.BookingLocationT | RentalDetailsT SRentalSlab.RentalSlabT | DriverOfferDetailsT SLoc.BookingLocationT | OneWaySpecialZoneDetailsT SLoc.BookingLocationT
 
 type FullBookingT = (BookingT, SLoc.BookingLocationT, Maybe STripTerms.TripTermsT, BookingDetailsT)
 
@@ -87,6 +88,7 @@ instance TType FullBookingT Domain.Booking where
       OneWayDetailsT toLocT -> Domain.OneWayDetails <$> buildOneWayDetails toLocT
       RentalDetailsT rentalSlabT -> Domain.RentalDetails <$> fromTType rentalSlabT
       DriverOfferDetailsT toLocT -> Domain.DriverOfferDetails <$> buildOneWayDetails toLocT
+      OneWaySpecialZoneDetailsT toLocT -> Domain.OneWaySpecialZoneDetails <$> buildOneWayDetails toLocT
     return $
       Domain.Booking
         { id = Id id,
@@ -121,6 +123,10 @@ instance TType FullBookingT Domain.Booking where
           Domain.DriverOfferDetails details -> do
             let toLocT = toTType details.toLocation
             (DQuote.DRIVER_OFFER, DriverOfferDetailsT toLocT, Just . toKey $ details.toLocation.id, Just details.distance, Nothing)
+          Domain.OneWaySpecialZoneDetails details -> do
+            let toLocT = toTType details.toLocation
+            (DQuote.ONE_WAY_SPECIAL_ZONE, OneWaySpecialZoneDetailsT toLocT, Just . toKey $ details.toLocation.id, Just details.distance, Nothing)
+
     let bookingT =
           BookingT
             { id = getId id,

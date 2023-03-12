@@ -19,6 +19,7 @@ module Domain.Types.Quote where
 import Data.OpenApi (ToSchema (..), genericDeclareNamedSchema)
 import qualified Domain.Types.DriverOffer as DDriverOffer
 import qualified Domain.Types.RentalSlab as DRentalSlab
+import qualified Domain.Types.SpecialZoneQuote as DSpecialZoneQuote
 import qualified Domain.Types.SearchRequest as DSearchRequest
 import qualified Domain.Types.TripTerms as DTripTerms
 import Domain.Types.VehicleVariant (VehicleVariant)
@@ -28,6 +29,7 @@ import Kernel.Types.Id
 import Kernel.Utils.GenericPretty
 import qualified Tools.JSON as J
 import qualified Tools.Schema as S
+-- import Domain.Action.Beckn.OnSearch (QuoteDetails(OneWaySpecialZoneDetails))
 
 data Quote = Quote
   { id :: Id Quote,
@@ -51,6 +53,7 @@ data QuoteDetails
   = OneWayDetails OneWayQuoteDetails
   | RentalDetails DRentalSlab.RentalSlab
   | DriverOfferDetails DDriverOffer.DriverOffer
+  | OneWaySpecialZoneDetails DSpecialZoneQuote.SpecialZoneQuote
   deriving (Generic, Show)
   deriving (PrettyShow) via Showable QuoteDetails
 
@@ -58,6 +61,12 @@ newtype OneWayQuoteDetails = OneWayQuoteDetails
   { distanceToNearestDriver :: HighPrecMeters
   }
   deriving (Generic, FromJSON, ToJSON, Show, ToSchema, PrettyShow)
+
+-- newtype OneWaySpecialZoneQuoteDetails = OneWaySpecialZoneQuoteDetails
+--   { 
+--     quoteType :: Text
+--   }
+--   deriving (Generic, FromJSON, ToJSON, Show, ToSchema, PrettyShow)
 
 data QuoteAPIEntity = QuoteAPIEntity
   { id :: Id Quote,
@@ -79,6 +88,7 @@ data QuoteAPIDetails
   = OneWayAPIDetails OneWayQuoteAPIDetails
   | RentalAPIDetails DRentalSlab.RentalSlabAPIEntity
   | DriverOfferAPIDetails DDriverOffer.DriverOfferAPIEntity
+  | OneWaySpecialZoneAPIDetails OneWaySpecialZoneQuoteAPIDetails
   deriving (Show, Generic)
 
 instance ToJSON QuoteAPIDetails where
@@ -95,11 +105,18 @@ newtype OneWayQuoteAPIDetails = OneWayQuoteAPIDetails
   }
   deriving (Generic, FromJSON, ToJSON, Show, ToSchema)
 
+newtype OneWaySpecialZoneQuoteAPIDetails = OneWaySpecialZoneQuoteAPIDetails
+  { 
+    quoteType :: Text
+  }
+  deriving (Generic, FromJSON, ToJSON, Show, ToSchema)
+
 mkQuoteAPIDetails :: QuoteDetails -> QuoteAPIDetails
 mkQuoteAPIDetails = \case
   RentalDetails DRentalSlab.RentalSlab {..} -> RentalAPIDetails DRentalSlab.RentalSlabAPIEntity {..}
   OneWayDetails OneWayQuoteDetails {..} -> OneWayAPIDetails OneWayQuoteAPIDetails {..}
   DriverOfferDetails DDriverOffer.DriverOffer {..} -> DriverOfferAPIDetails DDriverOffer.DriverOfferAPIEntity {..}
+  OneWaySpecialZoneDetails DSpecialZoneQuote.SpecialZoneQuote {..} -> OneWaySpecialZoneAPIDetails OneWaySpecialZoneQuoteAPIDetails {..}
 
 makeQuoteAPIEntity :: Quote -> QuoteAPIEntity
 makeQuoteAPIEntity Quote {..} = do

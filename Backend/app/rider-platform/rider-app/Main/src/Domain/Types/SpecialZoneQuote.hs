@@ -12,28 +12,22 @@
  the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 -}
 
-module Beckn.Types.Core.Taxi.Common.FareProductType where
+module Domain.Types.SpecialZoneQuote where
 
-import Kernel.Prelude hiding (show)
+import Kernel.Prelude
+-- import Kernel.Types.Common
+import Kernel.Types.Id
+import Kernel.Utils.GenericPretty (PrettyShow)
+-- import qualified Domain.Action.Beckn.Search as Domain.Types
 
--- TODO
--- ONE_WAY_TRIP, RENTAL_TRIP, DRIVER_OFFER_ESTIMATE can be used in on_search,
--- only DRIVER_OFFER can be used in on_select,
--- ONE_WAY_TRIP, RENTAL_TRIP, DRIVER_OFFER can be used in init
--- we can express it in specific types for each endpoint
-data FareProductType
-  = ONE_WAY_TRIP
-  | RENTAL_TRIP
-  | DRIVER_OFFER_ESTIMATE
-  | DRIVER_OFFER
-  | ONE_WAY_SPECIAL_ZONE
-  deriving
-    ( Eq,
-      Ord,
-      Generic,
-      ToSchema,
-      Show,
-      FromJSON,
-      ToJSON,
-      Read
-    )
+data SpecialZoneQuote = SpecialZoneQuote
+  { id :: Id SpecialZoneQuote, --not used in domain layer
+    quoteType :: Text
+  }
+  deriving (Generic, Show, PrettyShow)
+
+-- data SpecialZoneQuoteAPIEntity = SpecialZoneQuoteAPIEntity
+--   { baseDistance :: Kilometers,
+--     baseDuration :: Hours
+--   }
+--   deriving (Generic, FromJSON, ToJSON, Show, ToSchema)

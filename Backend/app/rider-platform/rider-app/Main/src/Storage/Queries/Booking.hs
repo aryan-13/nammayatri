@@ -39,6 +39,7 @@ create booking =
       OneWayDetailsT toLocT -> Esq.create' toLocT
       RentalDetailsT _rentalSlabT -> pure ()
       DriverOfferDetailsT toLocT -> Esq.create' toLocT
+      OneWaySpecialZoneDetailsT toLocT -> Esq.create' toLocT
     Esq.create' bookingT
 
 updateStatus :: Id Booking -> BookingStatus -> SqlDB ()

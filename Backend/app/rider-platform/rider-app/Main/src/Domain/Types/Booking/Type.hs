@@ -29,6 +29,7 @@ import Kernel.Prelude
 import Kernel.Types.Common
 import Kernel.Types.Id
 import Servant.API
+-- import Domain.Types.Quote (OneWaySpecialZoneQuoteDetails)
 
 activeBookingStatus :: [BookingStatus]
 activeBookingStatus = [NEW, CONFIRMED, AWAITING_REASSIGNMENT, TRIP_ASSIGNED]
@@ -82,6 +83,7 @@ data BookingDetails
   = OneWayDetails OneWayBookingDetails
   | RentalDetails DRentalSlab.RentalSlab
   | DriverOfferDetails OneWayBookingDetails
+  | OneWaySpecialZoneDetails OneWayBookingDetails
   deriving (Show)
 
 data OneWayBookingDetails = OneWayBookingDetails

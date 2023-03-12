@@ -59,6 +59,7 @@ data BookingAPIDetails
   = OneWayAPIDetails OneWayBookingAPIDetails
   | RentalAPIDetails DRentalSlab.RentalSlabAPIEntity
   | DriverOfferAPIDetails OneWayBookingAPIDetails
+  | OneWaySpecialZoneAPIDetails OneWayBookingAPIDetails
   deriving (Show, Generic)
 
 instance ToJSON BookingAPIDetails where
@@ -111,6 +112,7 @@ makeBookingAPIEntity booking activeRide allRides fareBreakups = do
       OneWayDetails details -> OneWayAPIDetails . mkOneWayAPIDetails $ details
       RentalDetails DRentalSlab.RentalSlab {..} -> RentalAPIDetails DRentalSlab.RentalSlabAPIEntity {..}
       DriverOfferDetails details -> DriverOfferAPIDetails . mkOneWayAPIDetails $ details
+      OneWaySpecialZoneDetails details -> OneWaySpecialZoneAPIDetails . mkOneWayAPIDetails $ details
       where
         mkOneWayAPIDetails OneWayBookingDetails {..} =
           OneWayBookingAPIDetails

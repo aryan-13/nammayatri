@@ -11,6 +11,9 @@
 
  the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 -}
+-- {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+-- {-# HLINT ignore "[]" #-}
+-- {-# HLINT ignore "[]" #-}
 
 module Beckn.ACL.OnSearch where
 
@@ -20,11 +23,23 @@ import Beckn.Types.Core.Taxi.OnSearch.Item (BreakupItem (..), BreakupPrice (..))
 import qualified Domain.Action.Beckn.Search as DSearch
 import qualified Domain.Types.Vehicle.Variant as Variant
 import Kernel.Prelude
+-- import Kernel.Utils.Common (throwError)
+-- import Kernel.Types.Error
 
 autoOneWayCategory :: OS.Category
 autoOneWayCategory =
   OS.Category
     { id = OS.DRIVER_OFFER_ESTIMATE,
+      descriptor =
+        OS.Descriptor
+          { name = ""
+          }
+    }
+
+oneWaySpecialZoneCategory :: OS.Category
+oneWaySpecialZoneCategory =
+  OS.Category
+    { id = OS.ONE_WAY_SPECIAL_ZONE,
       descriptor =
         OS.Descriptor
           { name = ""
@@ -37,8 +52,13 @@ mkOnSearchMessage ::
 mkOnSearchMessage res@DSearch.DSearchRes {..} = do
   let startInfo = mkStartInfo res
   let stopInfo = mkStopInfo res
-  let quoteEntitiesList = map (mkQuoteEntities startInfo stopInfo) estimateList
-      items = map (.item) quoteEntitiesList
+  let quoteEntitiesList = case (estimateList, specialQuoteList) of
+                            (Just estimates, _) -> map (mkQuoteEntities startInfo stopInfo) estimates
+                            (Nothing, Just quotes) -> map (mkQuoteEntitiesSpecialZone startInfo stopInfo) quotes
+                            (_,_) -> map (mkQuoteEntities startInfo stopInfo) [] --this won't happen
+      
+      
+  let items = map (.item) quoteEntitiesList
       fulfillments = map (.fulfillment) quoteEntitiesList
       contacts = fromMaybe "" provider.mobileNumber
       tags =
@@ -58,7 +78,7 @@ mkOnSearchMessage res@DSearch.DSearchRes {..} = do
           { id = provider.subscriberId.getShortId,
             descriptor = OS.Descriptor {name = provider.name},
             locations = [],
-            categories = [autoOneWayCategory],
+            categories = [autoOneWayCategory, oneWaySpecialZoneCategory],--need to change
             items,
             offers = [],
             add_ons = [],
@@ -117,34 +137,87 @@ mkQuoteEntities start end it = do
           }
       item =
         OS.Item
-          { category_id = autoOneWayCategory.id,
-            fulfillment_id = fulfillment.id,
+          { category_id = autoOneWayCategory.id, --need to change
+            fulfillment_id = fulfillment.id, --need to change
             offer_id = Nothing,
             price =
               OS.ItemPrice
                 { currency = currency',
-                  value = minPriceDecimalValue,
-                  offered_value = minPriceDecimalValue,
-                  minimum_value = minPriceDecimalValue,
-                  maximum_value = maxPriceDecimalValue,
-                  value_breakup = estimateBreakupList
+                  value = minPriceDecimalValue, -- only one estimatedOffered_value
+                  offered_value = minPriceDecimalValue,-- only one estimatedOffered_value
+                  minimum_value = minPriceDecimalValue,-- only one estimatedOffered_value
+                  maximum_value = maxPriceDecimalValue,-- only one estimatedOffered_value
+                  value_breakup = estimateBreakupList--[]
                 },
             descriptor =
               OS.ItemDescriptor
                 { name = "",
-                  code = OS.ItemCode OS.DRIVER_OFFER_ESTIMATE variant Nothing Nothing
+                  code = OS.ItemCode OS.DRIVER_OFFER_ESTIMATE variant Nothing Nothing --- instead of DRIVER_ESTIMATE it will be ONEWAYOTP
                 },
             quote_terms = [],
             tags =
               Just $
                 OS.ItemTags
-                  { distance_to_nearest_driver = Just $ OS.DecimalValue $ toRational it.distanceToPickup,
+                  { distance_to_nearest_driver = Just $ OS.DecimalValue $ toRational it.distanceToPickup, ---Nothing
                     night_shift_multiplier = OS.DecimalValue . toRational <$> ((.nightShiftMultiplier) =<< it.nightShiftRate),
                     night_shift_start = (.nightShiftStart) =<< it.nightShiftRate,
                     night_shift_end = (.nightShiftEnd) =<< it.nightShiftRate,
-                    waiting_charge_per_min = it.waitingCharges.waitingChargePerMin,
-                    waiting_time_estimated_threshold = it.waitingCharges.waitingTimeEstimatedThreshold,
-                    drivers_location = it.driversLatLong
+                    waiting_charge_per_min = it.waitingCharges.waitingChargePerMin, ---Nothing
+                    waiting_time_estimated_threshold = it.waitingCharges.waitingTimeEstimatedThreshold,---Nothing
+                    drivers_location = it.driversLatLong--Nothing
+                  },
+            base_distance = Nothing,
+            base_duration = Nothing
+          }
+  QuoteEntities
+    { fulfillment,
+      item
+    }
+
+
+mkQuoteEntitiesSpecialZone :: OS.StartInfo -> OS.StopInfo -> DSearch.SpecialZoneQuoteInfo -> QuoteEntities
+mkQuoteEntitiesSpecialZone start end it = do
+  let variant = castVariant it.vehicleVariant
+      estimatedFare = OS.DecimalValue $ toRational it.estimatedFare
+      -- maxPriceDecimalValue = OS.DecimalValue $ toRational it.maxFare
+      -- estimateBreakupList = buildEstimateBreakUpList <$> it.estimateBreakupList
+      fulfillment =
+        OS.FulfillmentInfo
+          { start,
+            end = Just end,
+            id = "ARDU_" <> show it.vehicleVariant,
+            vehicle = OS.FulfillmentVehicle {category = castVariant it.vehicleVariant}
+          }
+      item =
+        OS.Item
+          { category_id = oneWaySpecialZoneCategory.id,
+            fulfillment_id = fulfillment.id, --need to change
+            offer_id = Nothing,
+            price =
+              OS.ItemPrice
+                { currency = currency',
+                  value = estimatedFare, -- only one estimatedOffered_value
+                  offered_value = estimatedFare,-- only one estimatedOffered_value
+                  minimum_value = estimatedFare,-- only one estimatedOffered_value
+                  maximum_value = estimatedFare,-- only one estimatedOffered_value
+                  value_breakup = []
+                },
+            descriptor =
+              OS.ItemDescriptor
+                { name = "",
+                  code = OS.ItemCode OS.ONE_WAY_SPECIAL_ZONE variant Nothing Nothing
+                },
+            quote_terms = [],
+            tags =
+              Just $
+                OS.ItemTags
+                  { distance_to_nearest_driver = Nothing,
+                    night_shift_multiplier = Nothing,
+                    night_shift_start = Nothing,
+                    night_shift_end = Nothing,
+                    waiting_charge_per_min = Nothing,
+                    waiting_time_estimated_threshold = Nothing,
+                    drivers_location = []
                   },
             base_distance = Nothing,
             base_duration = Nothing

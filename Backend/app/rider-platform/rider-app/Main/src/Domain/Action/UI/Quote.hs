@@ -72,6 +72,7 @@ instance ToSchema OfferRes where
 getQuotes :: (HedisFlow m r, EsqDBReplicaFlow m r) => Id SSR.SearchRequest -> m GetQuotesRes
 getQuotes searchRequestId = do
   searchRequest <- runInReplica $ QSR.findById searchRequestId >>= fromMaybeM (SearchRequestDoesNotExist searchRequestId.getId)
+  logDebug $ "search Request is : " <> show searchRequest
   offers <- getOffers searchRequest
   estimates <- getEstimates searchRequestId
   return $
@@ -83,7 +84,8 @@ getQuotes searchRequestId = do
       }
 
 getOffers :: (HedisFlow m r, EsqDBReplicaFlow m r) => SSR.SearchRequest -> m [OfferRes]
-getOffers searchRequest =
+getOffers searchRequest = do
+  logDebug $ "search Request is : " <> show searchRequest
   case searchRequest.toLocation of
     Just _ -> do
       quoteList <- runInReplica $ QQuote.findAllByRequestId searchRequest.id
@@ -104,6 +106,7 @@ getOffers searchRequest =
         SQuote.OneWayDetails details -> Just details.distanceToNearestDriver
         SQuote.RentalDetails _ -> Nothing
         SQuote.DriverOfferDetails details -> Just details.distanceToPickup
+        SQuote.OneWaySpecialZoneDetails _ -> Just $ metersToHighPrecMeters $ Meters 0
     creationTime :: OfferRes -> UTCTime
     creationTime (OnDemandCab SQuote.QuoteAPIEntity {createdAt}) = createdAt
     creationTime (Metro Metro.MetroOffer {createdAt}) = createdAt

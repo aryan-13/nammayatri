@@ -12,28 +12,15 @@
  the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 -}
 
-module Beckn.Types.Core.Taxi.Common.FareProductType where
+module Storage.Queries.SpecialZoneQuote where
 
-import Kernel.Prelude hiding (show)
+import Domain.Types.SpecialZoneQuote
+import Kernel.Prelude
+import Kernel.Storage.Esqueleto as Esq
+import Kernel.Types.Common
+import Kernel.Types.Id
+import Storage.Tabular.SpecialZoneQuote
+-- import qualified Domain.Types.SpecialZoneQuote as Storage.Queries
 
--- TODO
--- ONE_WAY_TRIP, RENTAL_TRIP, DRIVER_OFFER_ESTIMATE can be used in on_search,
--- only DRIVER_OFFER can be used in on_select,
--- ONE_WAY_TRIP, RENTAL_TRIP, DRIVER_OFFER can be used in init
--- we can express it in specific types for each endpoint
-data FareProductType
-  = ONE_WAY_TRIP
-  | RENTAL_TRIP
-  | DRIVER_OFFER_ESTIMATE
-  | DRIVER_OFFER
-  | ONE_WAY_SPECIAL_ZONE
-  deriving
-    ( Eq,
-      Ord,
-      Generic,
-      ToSchema,
-      Show,
-      FromJSON,
-      ToJSON,
-      Read
-    )
+findById' :: (MonadThrow m, Log m, Transactionable m) => Id SpecialZoneQuote -> DTypeBuilder m (Maybe SpecialZoneQuoteT)
+findById' = Esq.findById'

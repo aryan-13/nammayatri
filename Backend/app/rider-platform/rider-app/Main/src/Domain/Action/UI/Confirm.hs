@@ -50,6 +50,7 @@ import qualified Storage.Queries.SearchRequest as QSReq
 import Tools.Error
 import Tools.Metrics (CoreMetrics)
 import qualified Tools.Notifications as Notify
+-- import Domain.Action.Beckn.OnSearch (QuoteDetails(OneWaySpecialZoneDetails))
 
 -- domain types
 
@@ -70,6 +71,7 @@ data ConfirmQuoteDetails
   = ConfirmOneWayDetails
   | ConfirmRentalDetails RentalSlabAPIEntity
   | ConfirmAutoDetails (Id DDriverOffer.BPPQuote)
+  | ConfirmOneWaySpecialZoneDetails
   deriving (Show, Generic)
 
 confirm :: (EsqDBFlow m r, EsqDBReplicaFlow m r) => Id DP.Person -> Id DQuote.Quote -> m DConfirmRes
@@ -84,6 +86,7 @@ confirm personId quoteId = do
       checkIfEstimateCancelled estimate.id estimate.status
       when (driverOffer.validTill < now) $
         throwError $ QuoteExpired quote.id.getId
+    DQuote.OneWaySpecialZoneDetails _ -> pure () -- Needs to be handled
   searchRequest <- QSReq.findById quote.requestId >>= fromMaybeM (SearchRequestNotFound quote.requestId.getId)
   activeBooking <- QRideB.findByRiderIdAndStatus personId DRB.activeBookingStatus
   unless (null activeBooking) $ throwError $ InvalidRequest "ACTIVE_BOOKING_PRESENT"
@@ -118,6 +121,7 @@ confirm personId quoteId = do
       DQuote.OneWayDetails _ -> ConfirmOneWayDetails
       DQuote.RentalDetails RentalSlab {..} -> ConfirmRentalDetails $ RentalSlabAPIEntity {..}
       DQuote.DriverOfferDetails driverOffer -> ConfirmAutoDetails driverOffer.bppQuoteId
+      DQuote.OneWaySpecialZoneDetails _ -> ConfirmOneWaySpecialZoneDetails
 
 buildBookingLocation :: MonadGuid m => UTCTime -> DSRLoc.SearchReqLocation -> m DBL.BookingLocation
 buildBookingLocation now DSRLoc.SearchReqLocation {..} = do
@@ -171,6 +175,7 @@ buildBooking searchRequest quote fromLoc mbToLoc now = do
       DQuote.OneWayDetails _ -> DRB.OneWayDetails <$> buildOneWayDetails
       DQuote.RentalDetails rentalSlab -> pure $ DRB.RentalDetails rentalSlab
       DQuote.DriverOfferDetails _ -> DRB.DriverOfferDetails <$> buildOneWayDetails
+      DQuote.OneWaySpecialZoneDetails _ -> DRB.OneWaySpecialZoneDetails <$> buildOneWayDetails
     buildOneWayDetails = do
       -- we need to throw errors here because of some redundancy of our domain model
       toLocation <- mbToLoc & fromMaybeM (InternalError "toLocation is null for one way search request")
