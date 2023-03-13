@@ -97,8 +97,7 @@ type GetRideInfo = SRide.Ride
 type GetRideInfoRes = SRide.ShareRideInfo
 
 getRideInfo ::
-  ( EsqDBReplicaFlow m r,
-    EsqDBFlow m r
+  ( EsqDBReplicaFlow m r
   ) =>
   Id GetRideInfo ->
   m GetRideInfoRes
