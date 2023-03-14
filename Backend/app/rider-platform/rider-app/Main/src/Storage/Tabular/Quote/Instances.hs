@@ -27,6 +27,7 @@ import qualified Storage.Tabular.RentalSlab as SRentalSlab
 import qualified Storage.Tabular.SpecialZoneQuote as SSpecialZoneQuote
 import qualified Storage.Tabular.TripTerms as STripTerms
 import Tools.Error
+
 -- import qualified Beckn.Types.Core.Taxi.Common.FareProductType as Domain
 
 data QuoteDetailsT

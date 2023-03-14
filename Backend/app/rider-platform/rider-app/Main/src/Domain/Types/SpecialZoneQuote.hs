@@ -26,8 +26,7 @@ data SpecialZoneQuote = SpecialZoneQuote
   }
   deriving (Generic, Show, PrettyShow)
 
--- data SpecialZoneQuoteAPIEntity = SpecialZoneQuoteAPIEntity
---   { baseDistance :: Kilometers,
---     baseDuration :: Hours
---   }
---   deriving (Generic, FromJSON, ToJSON, Show, ToSchema)
+newtype SpecialZoneQuoteAPIEntity = SpecialZoneQuoteAPIEntity
+  { quoteType :: Text
+  }
+  deriving (Generic, FromJSON, ToJSON, Show, ToSchema)

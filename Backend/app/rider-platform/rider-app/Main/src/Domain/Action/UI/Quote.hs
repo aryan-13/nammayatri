@@ -89,6 +89,7 @@ getOffers searchRequest = do
   case searchRequest.toLocation of
     Just _ -> do
       quoteList <- runInReplica $ QQuote.findAllByRequestId searchRequest.id
+      logDebug $ "quotes are : " <> show quoteList
       let quotes = OnDemandCab . SQuote.makeQuoteAPIEntity <$> sortByNearestDriverDistance quoteList
       metroOffers <- map Metro <$> Metro.getMetroOffers searchRequest.id
       publicTransportOffers <- map PublicTransport <$> PublicTransport.getPublicTransportOffers searchRequest.id

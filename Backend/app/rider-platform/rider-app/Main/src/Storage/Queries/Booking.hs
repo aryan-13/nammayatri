@@ -64,6 +64,17 @@ updateBPPBookingId rbId bppRbId = do
       ]
     where_ $ tbl ^. RB.BookingId ==. val (getId rbId)
 
+updateOtpCodeBookingId :: Id Booking -> Text -> SqlDB ()
+updateOtpCodeBookingId rbId otp = do
+  now <- getCurrentTime
+  Esq.update $ \tbl -> do
+    set
+      tbl
+      [ RB.BookingUpdatedAt =. val now,
+        RB.BookingOtpCode =. val (Just otp)
+      ]
+    where_ $ tbl ^. RB.BookingId ==. val (getId rbId)
+
 fullBookingTable ::
   From
     ( Table RB.BookingT

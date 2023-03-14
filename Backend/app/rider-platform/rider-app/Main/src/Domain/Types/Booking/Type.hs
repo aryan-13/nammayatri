@@ -83,11 +83,18 @@ data BookingDetails
   = OneWayDetails OneWayBookingDetails
   | RentalDetails DRentalSlab.RentalSlab
   | DriverOfferDetails OneWayBookingDetails
-  | OneWaySpecialZoneDetails OneWayBookingDetails
+  | OneWaySpecialZoneDetails OneWaySpecialZoneBookingDetails
   deriving (Show)
 
 data OneWayBookingDetails = OneWayBookingDetails
   { toLocation :: DLoc.BookingLocation,
     distance :: HighPrecMeters
+  }
+  deriving (Show)
+
+data OneWaySpecialZoneBookingDetails = OneWaySpecialZoneBookingDetails
+  { toLocation :: DLoc.BookingLocation,
+    distance :: HighPrecMeters,
+    otpCode :: Maybe Text
   }
   deriving (Show)

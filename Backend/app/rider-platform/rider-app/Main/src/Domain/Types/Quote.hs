@@ -63,8 +63,7 @@ newtype OneWayQuoteDetails = OneWayQuoteDetails
   deriving (Generic, FromJSON, ToJSON, Show, ToSchema, PrettyShow)
 
 -- newtype OneWaySpecialZoneQuoteDetails = OneWaySpecialZoneQuoteDetails
---   { 
---     quoteType :: Text
+--   { quoteType :: Text
 --   }
 --   deriving (Generic, FromJSON, ToJSON, Show, ToSchema, PrettyShow)
 
@@ -88,7 +87,7 @@ data QuoteAPIDetails
   = OneWayAPIDetails OneWayQuoteAPIDetails
   | RentalAPIDetails DRentalSlab.RentalSlabAPIEntity
   | DriverOfferAPIDetails DDriverOffer.DriverOfferAPIEntity
-  | OneWaySpecialZoneAPIDetails OneWaySpecialZoneQuoteAPIDetails
+  | OneWaySpecialZoneAPIDetails DSpecialZoneQuote.SpecialZoneQuoteAPIEntity
   deriving (Show, Generic)
 
 instance ToJSON QuoteAPIDetails where
@@ -106,8 +105,7 @@ newtype OneWayQuoteAPIDetails = OneWayQuoteAPIDetails
   deriving (Generic, FromJSON, ToJSON, Show, ToSchema)
 
 newtype OneWaySpecialZoneQuoteAPIDetails = OneWaySpecialZoneQuoteAPIDetails
-  { 
-    quoteType :: Text
+  { quoteType :: Text
   }
   deriving (Generic, FromJSON, ToJSON, Show, ToSchema)
 
@@ -116,7 +114,7 @@ mkQuoteAPIDetails = \case
   RentalDetails DRentalSlab.RentalSlab {..} -> RentalAPIDetails DRentalSlab.RentalSlabAPIEntity {..}
   OneWayDetails OneWayQuoteDetails {..} -> OneWayAPIDetails OneWayQuoteAPIDetails {..}
   DriverOfferDetails DDriverOffer.DriverOffer {..} -> DriverOfferAPIDetails DDriverOffer.DriverOfferAPIEntity {..}
-  OneWaySpecialZoneDetails DSpecialZoneQuote.SpecialZoneQuote {..} -> OneWaySpecialZoneAPIDetails OneWaySpecialZoneQuoteAPIDetails {..}
+  OneWaySpecialZoneDetails DSpecialZoneQuote.SpecialZoneQuote {..} -> OneWaySpecialZoneAPIDetails DSpecialZoneQuote.SpecialZoneQuoteAPIEntity {..}
 
 makeQuoteAPIEntity :: Quote -> QuoteAPIEntity
 makeQuoteAPIEntity Quote {..} = do

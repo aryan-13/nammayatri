@@ -29,8 +29,9 @@ import qualified Storage.CachedQueries.Merchant as QMerch
 import qualified Storage.Queries.Booking as QRB
 import Tools.Error
 
-newtype OnConfirmReq = OnConfirmReq
-  { bppBookingId :: Id DRB.BPPBooking
+data OnConfirmReq = OnConfirmReq
+  { bppBookingId :: Id DRB.BPPBooking,
+    specialZoneOtp :: Maybe Text
   }
 
 onConfirm :: (CacheFlow m r, EsqDBFlow m r) => BaseUrl -> OnConfirmReq -> m ()
@@ -40,6 +41,9 @@ onConfirm registryUrl req = do
   -- TODO: this supposed to be temporary solution. Check if we still need it
   merchant <- QMerch.findById booking.merchantId >>= fromMaybeM (MerchantNotFound booking.merchantId.getId)
   unless (merchant.registryUrl == registryUrl) $ throwError (InvalidRequest "Merchant doesnt't work with passed url.")
+  whenJust req.specialZoneOtp $ \otp ->
+    DB.runTransaction $ do
+      QRB.updateOtpCodeBookingId booking.id otp
 
   DB.runTransaction $ do
     QRB.updateStatus booking.id DRB.CONFIRMED

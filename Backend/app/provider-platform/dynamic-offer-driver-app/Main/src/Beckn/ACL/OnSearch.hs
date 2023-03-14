@@ -140,6 +140,7 @@ mkQuoteEntities start end it = do
           { category_id = autoOneWayCategory.id, --need to change
             fulfillment_id = fulfillment.id, --need to change
             offer_id = Nothing,
+            id = show autoOneWayCategory.id,
             price =
               OS.ItemPrice
                 { currency = currency',
@@ -185,12 +186,13 @@ mkQuoteEntitiesSpecialZone start end it = do
         OS.FulfillmentInfo
           { start,
             end = Just end,
-            id = "ARDU_" <> show it.vehicleVariant,
+            id = "fulf_" <> show it.quoteId,
             vehicle = OS.FulfillmentVehicle {category = castVariant it.vehicleVariant}
           }
       item =
         OS.Item
-          { category_id = oneWaySpecialZoneCategory.id,
+          { id = it.quoteId.getId,
+            category_id = oneWaySpecialZoneCategory.id,
             fulfillment_id = fulfillment.id, --need to change
             offer_id = Nothing,
             price =

@@ -27,21 +27,24 @@ import Kernel.Storage.Esqueleto
 import Kernel.Types.Common hiding (id)
 import Kernel.Types.Id
 import Storage.Tabular.Booking.BookingLocation hiding (createdAt, id, updatedAt)
-import Storage.Tabular.DriverQuote (DriverQuoteTId)
+-- import Storage.Tabular.DriverQuote (DriverQuoteTId)
 import qualified Storage.Tabular.FareParameters as Fare
 import Storage.Tabular.Merchant (MerchantTId)
 import Storage.Tabular.RiderDetails (RiderDetailsTId)
 import Storage.Tabular.Vehicle ()
 
 derivePersistField "Domain.BookingStatus"
+derivePersistField "Domain.BookingType"
 
 mkPersist
   defaultSqlSettings
   [defaultQQ|
     BookingT sql=booking
       id Text
-      quoteId DriverQuoteTId
+      quoteId Text
       status Domain.BookingStatus
+      bookingType Domain.BookingType
+      specialZoneOtpCode Text Maybe
       providerId MerchantTId
       bapId Text
       bapUri Text
@@ -76,7 +79,6 @@ instance TType (BookingT, BookingLocationT, BookingLocationT, Fare.FareParameter
     return $
       Domain.Booking
         { id = Id id,
-          quoteId = fromKey quoteId,
           providerId = fromKey providerId,
           fromLocation = fromLoc_,
           toLocation = toLoc_,
@@ -87,7 +89,6 @@ instance TType (BookingT, BookingLocationT, BookingLocationT, Fare.FareParameter
   toTType Domain.Booking {..} =
     ( BookingT
         { id = getId id,
-          quoteId = toKey quoteId,
           providerId = toKey providerId,
           fromLocationId = toKey fromLocation.id,
           toLocationId = toKey toLocation.id,

@@ -70,7 +70,7 @@ findBySearchReq searchReqId = buildDType $
           ( baseBookingTable
               `innerJoin` table @DriverQuote.DriverQuoteT
               `Esq.on` ( \(rb :& _ :& _ :& _ :& dq) ->
-                           rb ^. BookingQuoteId ==. dq ^. DriverQuoteTId
+                           rb ^. BookingQuoteId ==. dq ^. DriverQuoteId
                        )
           )
       where_ $ dq ^. DriverQuoteSearchRequestId ==. val (toKey searchReqId)
@@ -105,6 +105,17 @@ updateRiderName bookingId riderName = do
     set
       tbl
       [ BookingRiderName =. val (Just riderName),
+        BookingUpdatedAt =. val now
+      ]
+    where_ $ tbl ^. BookingTId ==. val (toKey bookingId)
+
+updateSpecialZoneOtpCode :: Id Booking -> Text -> SqlDB ()
+updateSpecialZoneOtpCode bookingId specialZoneOtpCode = do
+  now <- getCurrentTime
+  Esq.update $ \tbl -> do
+    set
+      tbl
+      [ BookingSpecialZoneOtpCode =. val (Just specialZoneOtpCode),
         BookingUpdatedAt =. val now
       ]
     where_ $ tbl ^. BookingTId ==. val (toKey bookingId)

@@ -147,14 +147,14 @@ buildOneWaySpecialZoneQuoteDetails ::
   (MonadThrow m, Log m) =>
   OnSearch.Item ->
   m DOnSearch.OneWaySpecialZoneQuoteDetails
-buildOneWaySpecialZoneQuoteDetails _ = do
+buildOneWaySpecialZoneQuoteDetails item = do
   -- distanceToNearestDriver <-
   --   (item.tags >>= (.distance_to_nearest_driver))
   --     & fromMaybeM (InvalidRequest "Trip type is ONE_WAY, but distanceToNearestDriver is Nothing")
   pure
     DOnSearch.OneWaySpecialZoneQuoteDetails
       {
-        quoteType = "Special Zone Quote"
+        quoteType = item.id
       }
 
 --FIXME remove round by using Kilometers and Hours in spec

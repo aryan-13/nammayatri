@@ -118,10 +118,11 @@ data QuoteDetails
 newtype OneWayQuoteDetails = OneWayQuoteDetails
   { distanceToNearestDriver :: HighPrecMeters
   }
+
 newtype OneWaySpecialZoneQuoteDetails = OneWaySpecialZoneQuoteDetails
-  { 
-    quoteType :: Text
+  { quoteType :: Text
   }
+
 data RentalQuoteDetails = RentalQuoteDetails
   { baseDistance :: Kilometers,
     baseDuration :: Hours

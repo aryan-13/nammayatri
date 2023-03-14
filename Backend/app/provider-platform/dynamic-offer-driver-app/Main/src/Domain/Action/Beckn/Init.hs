@@ -17,7 +17,7 @@ module Domain.Action.Beckn.Init where
 import qualified Domain.Types.Booking as DRB
 import qualified Domain.Types.Booking.BookingLocation as DLoc
 import qualified Domain.Types.BookingCancellationReason as DBCR
-import qualified Domain.Types.DriverQuote as DQuote
+-- import qualified Domain.Types.DriverQuote as DQuote
 import qualified Domain.Types.Merchant as DM
 import qualified Domain.Types.SearchRequest.SearchReqLocation as DLoc
 import Kernel.Prelude
@@ -34,13 +34,18 @@ import qualified Storage.CachedQueries.Merchant as QM
 import qualified Storage.Queries.Booking as QRB
 import qualified Storage.Queries.BookingCancellationReason as QBCR
 import qualified Storage.Queries.DriverQuote as QDQuote
+import qualified Storage.Queries.QuoteSpecialZone as QSZoneQuote
 import qualified Storage.Queries.SearchRequest as QSR
+import qualified Storage.Queries.SearchRequestSpecialZone as QSRSpecialZone
 
 data InitReq = InitReq
-  { driverQuoteId :: Id DQuote.DriverQuote,
+  { driverQuoteId :: Text,
     bapId :: Text,
-    bapUri :: BaseUrl
+    bapUri :: BaseUrl,
+    initTypeReq :: InitTypeReq
   }
+
+data InitTypeReq = InitSpecialZoneReq | InitNormalReq
 
 data InitRes = InitRes
   { booking :: DRB.Booking,
@@ -97,39 +102,83 @@ cancelBooking booking transporterId = do
 handler :: (CacheFlow m r, EsqDBFlow m r) => Id DM.Merchant -> InitReq -> m InitRes
 handler merchantId req = do
   transporter <- QM.findById merchantId >>= fromMaybeM (MerchantNotFound merchantId.getId)
-  now <- getCurrentTime
-  driverQuote <- QDQuote.findById req.driverQuoteId >>= fromMaybeM (QuoteNotFound req.driverQuoteId.getId)
-  when (driverQuote.validTill < now) $
-    throwError $ QuoteExpired driverQuote.id.getId
-  searchRequest <- QSR.findById driverQuote.searchRequestId >>= fromMaybeM (SearchRequestNotFound driverQuote.searchRequestId.getId)
-  -- do we need to check searchRequest.validTill?
-  booking <- buildBooking searchRequest driverQuote now
-  Esq.runTransaction $
-    QRB.create booking
-  pure InitRes {..}
-  where
-    buildBooking searchRequest driverQuote now = do
-      id <- Id <$> generateGUID
-      fromLocation <- buildBookingLocation searchRequest.fromLocation
-      toLocation <- buildBookingLocation searchRequest.toLocation
-      pure
-        DRB.Booking
-          { quoteId = req.driverQuoteId,
-            status = DRB.NEW,
-            providerId = merchantId,
-            bapId = req.bapId,
-            bapUri = req.bapUri,
-            startTime = searchRequest.startTime,
-            riderId = Nothing,
-            vehicleVariant = driverQuote.vehicleVariant,
-            estimatedDistance = driverQuote.distance,
-            createdAt = now,
-            updatedAt = now,
-            fromLocation,
-            toLocation,
-            estimatedFare = driverQuote.estimatedFare,
-            riderName = Nothing,
-            estimatedDuration = searchRequest.estimatedDuration,
-            fareParams = driverQuote.fareParams,
-            ..
-          }
+  case req.initTypeReq of
+    InitNormalReq -> do
+      now <- getCurrentTime
+      driverQuote <- QDQuote.findById (Id req.driverQuoteId) >>= fromMaybeM (QuoteNotFound req.driverQuoteId)
+      when (driverQuote.validTill < now) $
+        throwError $ QuoteExpired driverQuote.id.getId
+      searchRequest <- QSR.findById driverQuote.searchRequestId >>= fromMaybeM (SearchRequestNotFound driverQuote.searchRequestId.getId)
+      -- do we need to check searchRequest.validTill?
+      booking <- buildBooking searchRequest driverQuote now
+      Esq.runTransaction $
+        QRB.create booking
+      pure InitRes {..}
+      where
+        buildBooking searchRequest driverQuote now = do
+          id <- Id <$> generateGUID
+          fromLocation <- buildBookingLocation searchRequest.fromLocation
+          toLocation <- buildBookingLocation searchRequest.toLocation
+          pure
+            DRB.Booking
+              { quoteId = req.driverQuoteId,
+                status = DRB.NEW,
+                providerId = merchantId,
+                bapId = req.bapId,
+                bapUri = req.bapUri,
+                startTime = searchRequest.startTime,
+                riderId = Nothing,
+                vehicleVariant = driverQuote.vehicleVariant,
+                estimatedDistance = driverQuote.distance,
+                createdAt = now,
+                updatedAt = now,
+                fromLocation,
+                toLocation,
+                estimatedFare = driverQuote.estimatedFare,
+                riderName = Nothing,
+                estimatedDuration = searchRequest.estimatedDuration,
+                fareParams = driverQuote.fareParams,
+                bookingType = DRB.NormalBooking,
+                specialZoneOtpCode = Nothing,
+                ..
+              }
+    InitSpecialZoneReq -> do
+      now <- getCurrentTime
+      specialZoneQuote <- QSZoneQuote.findById (Id req.driverQuoteId) >>= fromMaybeM (QuoteNotFound req.driverQuoteId)
+      when (specialZoneQuote.validTill < now) $
+        throwError $ QuoteExpired specialZoneQuote.id.getId
+      searchRequest <- QSRSpecialZone.findById specialZoneQuote.searchRequestId >>= fromMaybeM (SearchRequestNotFound specialZoneQuote.searchRequestId.getId)
+      -- do we need to check searchRequest.validTill?
+      booking <- buildBooking searchRequest specialZoneQuote now
+      Esq.runTransaction $
+        QRB.create booking
+      pure InitRes {..}
+      where
+        buildBooking searchRequest driverQuote now = do
+          id <- Id <$> generateGUID
+          fromLocation <- buildBookingLocation searchRequest.fromLocation
+          toLocation <- buildBookingLocation searchRequest.toLocation
+          pure
+            DRB.Booking
+              { quoteId = req.driverQuoteId,
+                status = DRB.NEW,
+                providerId = merchantId,
+                bapId = req.bapId,
+                bapUri = req.bapUri,
+                startTime = searchRequest.startTime,
+                riderId = Nothing,
+                vehicleVariant = driverQuote.vehicleVariant,
+                estimatedDistance = driverQuote.distance,
+                createdAt = now,
+                updatedAt = now,
+                fromLocation,
+                toLocation,
+                estimatedFare = driverQuote.estimatedFare,
+                riderName = Nothing,
+                estimatedDuration = searchRequest.estimatedDuration,
+                fareParams = driverQuote.fareParams,
+                bookingType = DRB.SpecialZoneBooking,
+                specialZoneOtpCode = Nothing,
+                ..
+              }
+

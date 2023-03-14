@@ -347,7 +347,12 @@ buildSearchRequestSpecialZone DSearchReq {..} providerId fromLocation toLocation
       }
 
 buildSpecialZoneQuote ::
-  EsqDBFlow m r =>
+  ( MonadGuid m,
+    MonadTime m,
+    MonadReader r m,
+    EsqDBFlow m r,
+    HasField "driverQuoteExpirationSeconds" r NominalDiffTime
+    ) =>
   DSRSZ.SearchRequestSpecialZone ->
   FareParameters ->
   Id DM.Merchant ->
@@ -361,6 +366,9 @@ buildSpecialZoneQuote productSearchRequest fareParams transporterId distance veh
   now <- getCurrentTime
   let estimatedFare = fareSum fareParams
       estimatedFinishTime = fromIntegral duration `addUTCTime` now
+  driverQuoteExpirationSeconds <- asks (.driverQuoteExpirationSeconds) 
+  let validTill = driverQuoteExpirationSeconds `addUTCTime` now
+
       -- discount = fareParams.discount
       -- estimatedTotalFare = fareSumWithDiscount fareParams
   -- let oneWayQuoteDetails = DQuote.OneWayQuoteDetails {..}
@@ -371,7 +379,6 @@ buildSpecialZoneQuote productSearchRequest fareParams transporterId distance veh
         providerId = transporterId,
         createdAt = now,
         updatedAt = now,
-        validTill = now,
         -- quoteDetails = DQuote.OneWayDetails oneWayQuoteDetails,
         ..
       }
