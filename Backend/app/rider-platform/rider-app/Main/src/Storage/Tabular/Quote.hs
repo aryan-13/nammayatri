@@ -30,8 +30,8 @@ import Kernel.Types.Id
 import qualified Storage.Tabular.DriverOffer as SDriverOffer
 import qualified Storage.Tabular.RentalSlab as SRentalSlab
 import qualified Storage.Tabular.SearchRequest as SSearchRequest
-import qualified Storage.Tabular.TripTerms as STripTerms
 import qualified Storage.Tabular.SpecialZoneQuote as SSpecialZoneQuote
+import qualified Storage.Tabular.TripTerms as STripTerms
 
 mkPersist
   defaultSqlSettings

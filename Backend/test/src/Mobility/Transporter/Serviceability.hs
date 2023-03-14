@@ -87,7 +87,7 @@ nonServiceableSearchRequest appClientEnv = do
           AppBESearch.OneWayOTPSearch $
             req
               & #origin . #gps .~ keralaLocation
-              & #destination . #gps .~ goaLocation    
+              & #destination . #gps .~ goaLocation
   result <- runClient appClientEnv (searchServices appRegistrationToken updatedSearchReq (Just defaultVersion) (Just defaultVersion))
   verifyError 400 "RIDE_NOT_SERVICEABLE" result
 

@@ -35,6 +35,7 @@ import qualified Storage.Tabular.Quote as SQuote
 import qualified Storage.Tabular.RentalSlab as SRentalSlab
 import qualified Storage.Tabular.TripTerms as STripTerms
 import Tools.Error
+
 -- import Storage.Tabular.Quote.Instances (QuoteDetailsT(OneWaySpecialZoneDetailsT))
 
 derivePersistField "Domain.BookingStatus"
@@ -117,8 +118,7 @@ instance TType FullBookingT Domain.Booking where
         distance' <- distance & fromMaybeM (InternalError "distance is null for one way booking")
         pure
           Domain.OneWaySpecialZoneBookingDetails
-            { 
-              distance = distance',
+            { distance = distance',
               ..
             }
 

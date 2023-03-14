@@ -132,6 +132,17 @@ findStuckBookings merchantId bookingIds now = do
         &&. (booking ^. BookingStatus ==. val NEW &&. upcoming6HrsCond)
     pure $ booking ^. BookingTId
 
+findBookingBySpecialZoneOTP :: Transactionable m => Text -> UTCTime -> m (Maybe (Id Booking))
+findBookingBySpecialZoneOTP bookingIds now = do
+  Esq.findOne $ do
+    booking <- from $ table @BookingT
+    let otpExpiryCondition =
+          booking ^. BookingCreatedAt +. Esq.interval [Esq.MINUTE 30] >=. val now
+    where_ $
+      booking ^. BookingSpecialZoneOtpCode ==. val (Just bookingIds)
+        &&. (booking ^. BookingStatus ==. val NEW &&. otpExpiryCondition)
+    pure $ booking ^. BookingTId
+
 cancelBookings :: [Id Booking] -> UTCTime -> SqlDB ()
 cancelBookings bookingIds now = do
   Esq.update $ \tbl -> do

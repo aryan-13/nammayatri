@@ -20,7 +20,7 @@ where
 
 import Beckn.Types.Core.Taxi.Common.TimeTimestamp as Reexport
 import Beckn.Types.Core.Taxi.OnConfirm.Location (Location)
-import Beckn.Types.Core.Taxi.OnUpdate.OnUpdateEvent.RideAssignedEvent as Reexport (Authorization(..))
+import Beckn.Types.Core.Taxi.OnUpdate.OnUpdateEvent.RideAssignedEvent as Reexport (Authorization (..))
 import Data.OpenApi (ToSchema (..), defaultSchemaOptions)
 import EulerHS.Prelude hiding (id)
 import Kernel.Utils.Schema (genericDeclareUnNamedSchema)

@@ -30,9 +30,8 @@ import Storage.Tabular.Estimate
 import Storage.Tabular.Estimate.Instances
 import Storage.Tabular.Quote as Quote
 import Storage.Tabular.Quote.Instances as Quote
-
-import Storage.Tabular.SpecialZoneQuote
 import Storage.Tabular.RentalSlab
+import Storage.Tabular.SpecialZoneQuote
 import Storage.Tabular.TripTerms
 
 buildFullQuote ::

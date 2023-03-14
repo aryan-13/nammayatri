@@ -44,6 +44,7 @@ where
 
 import Data.OpenApi (ToSchema)
 import Data.Time (Day)
+-- import qualified Data.Text as T
 import qualified Domain.Types.Driver.DriverFlowStatus as DDFS
 import Domain.Types.DriverInformation (DriverInformation)
 import qualified Domain.Types.DriverInformation as DriverInfo
@@ -52,6 +53,9 @@ import qualified Domain.Types.DriverReferral as DR
 import qualified Domain.Types.FareParameters as Fare
 import Domain.Types.FarePolicy.FarePolicy (ExtraFee)
 import qualified Domain.Types.Merchant as DM
+-- import qualified Domain.Types.Ride as DRide
+-- import qualified Domain.Types.RideDetails as DRD
+-- import qualified SharedLogic.CallBAP as BP
 import Domain.Types.Person (Person, PersonAPIEntity)
 import qualified Domain.Types.Person as SP
 import qualified Domain.Types.SearchRequest as DSReq
@@ -90,6 +94,11 @@ import Storage.CachedQueries.CacheConfig
 import qualified Storage.CachedQueries.DriverInformation as QDriverInformation
 import Storage.CachedQueries.FarePolicy.FarePolicy (findByMerchantIdAndVariant)
 import qualified Storage.CachedQueries.Merchant as CQM
+-- import qualified Storage.Queries.Booking as QBooking
+-- import qualified Storage.Queries.RideDetails as QRideD
+-- import qualified Storage.Queries.BusinessEvent as QBE
+-- import qualified SharedLogic.DriverLocation as DLoc
+-- import Storage.Queries.Vehicle as QVeh
 import qualified Storage.Queries.Driver.DriverFlowStatus as QDFS
 import qualified Storage.Queries.DriverLocation as QDriverLocation
 import qualified Storage.Queries.DriverQuote as QDrQt
@@ -245,6 +254,12 @@ data DriverRespondReq = DriverRespondReq
   }
   deriving stock (Generic)
   deriving anyclass (FromJSON, ToJSON, ToSchema)
+
+-- newtype OTPRideReq = OTPRideReq
+--   { specialZoneOtpCode :: Text
+--   }
+--   deriving stock (Generic)
+--   deriving anyclass (FromJSON, ToJSON, ToSchema)
 
 data DriverStatsRes = DriverStatsRes
   { totalRidesOfDay :: Int,
@@ -738,3 +753,103 @@ getStats driverId date = do
       { totalRidesOfDay = length rides,
         totalEarningsOfDay = sum . catMaybes $ rides <&> (.fare)
       }
+
+-- otpRideCreateAndStart ::
+--   ( HasCacheConfig r,
+--     EsqDBFlow m r,
+--     EsqDBReplicaFlow m r,
+--     Redis.HedisFlow m r,
+--     HasFlowEnv m r '["nwAddress" ::: BaseUrl],
+--     HasFlowEnv m r '["selfUIUrl" ::: BaseUrl],
+--     HasHttpClientOptions r c,
+--     HasShortDurationRetryCfg r c,
+--     CoreMetrics m,
+--     HasPrettyLogger m r
+--   ) =>
+--   Id SP.Person ->
+--   OTPRideReq ->
+--   m APISuccess
+-- otpRideCreateAndStart driverId req = do
+--   booking <- runInReplica $ QBooking.findBookingBySpecialZoneOTP req.specialZoneOtpCode >>= fromMaybeM (BookingDoesNotExist "")--need to replace the error
+--   transporter <- CQM.findById booking.providerId >>= fromMaybeM (MerchantDoesNotExist booking.providerId.getId)
+--   driver <- QPerson.findById driverId >>= fromMaybeM (PersonNotFound driverId.getId)
+--   now <- getCurrentTime
+--   driverInfo <- QDriverInformation.findById (cast driverId) >>= fromMaybeM DriverInfoNotFound
+--   when driverInfo.onRide $ throwError DriverOnRide
+--   ride <- buildRide driveId booking
+--   rideDetails <- buildRideDetails ride driver
+--   Esq.runTransaction $ do
+--     QRide.create ride
+--     QDFS.updateStatus driver.id DDFS.RIDE_ASSIGNED {rideId = ride.id}
+--     QRideD.create rideDetails
+--     QBE.logDriverAssignedEvent (cast driver.id) booking.id ride.id
+--     DLoc.updateOnRide (cast driver.id) True
+--   uBooking <- runInReplica $ QBooking.findById booking.id >>= fromMaybeM (BookingNotFound booking.id.getId)
+--   Notify.notifyDriver transporter.id notificationType notificationTitle (message uBooking) driver.id driver.deviceToken
+--   void $ BP.sendRideAssignedUpdateToBAP uBooking ride
+--   incrementTotalRidesCount transporter.id driverId
+
+--   pure Success
+--   where
+--     notificationType = FCM.DRIVER_ASSIGNMENT
+--     notificationTitle = "Driver has been assigned the ride!"
+--     message booking =
+--       cs $
+--         unwords
+--           [ "You have been assigned a ride for",
+--             cs (showTimeIst booking.startTime) <> ".",
+--             "Check the app for more details."
+--           ]
+--     buildRide driverId booking = do
+--         guid <- Id <$> generateGUID
+--         shortId <- generateShortId
+--         otp <- booking.specialZoneOtpCode & fromMaybeM (BookingNotFound booking.id.getId)  -- replace with this error OtpNotFoundForSpecialZoneBooking
+--         now <- getCurrentTime
+--         trackingUrl <- buildTrackingUrl guid
+--         return
+--           DRide.Ride
+--             { id = guid,
+--               bookingId = booking.id,
+--               shortId = shortId,
+--               status = DRide.NEW,
+--               driverId = cast driverId,
+--               otp = otp,
+--               trackingUrl = trackingUrl,
+--               fare = Nothing,
+--               traveledDistance = 0,
+--               chargeableDistance = Nothing,
+--               driverArrivalTime = Nothing,
+--               tripStartTime = Nothing,
+--               tripEndTime = Nothing,
+--               tripStartPos = Nothing,
+--               tripEndPos = Nothing,
+--               fareParametersId = Nothing,
+--               createdAt = now,
+--               updatedAt = now
+--             }
+
+--     buildTrackingUrl rideId = do
+--       bppUIUrl <- asks (.selfUIUrl)
+--       let rideid = T.unpack (getId rideId)
+--       return $
+--         bppUIUrl
+--           { --TODO: find a way to build it using existing types from Routes
+--             baseUrlPath = baseUrlPath bppUIUrl <> "/driver/location/" <> rideid
+--           }
+
+--     buildRideDetails ride driver = do
+--       vehicle <-
+--         QVeh.findById ride.driverId
+--           >>= fromMaybeM (VehicleNotFound ride.driverId.getId)
+--       return
+--         DRD.RideDetails
+--           { id = ride.id,
+--             driverName = driver.firstName,
+--             driverNumber = driver.mobileNumber,
+--             driverCountryCode = driver.mobileCountryCode,
+--             vehicleNumber = vehicle.registrationNo,
+--             vehicleColor = Just vehicle.color,
+--             vehicleVariant = Just vehicle.variant,
+--             vehicleModel = Just vehicle.model,
+--             vehicleClass = Nothing
+--           }

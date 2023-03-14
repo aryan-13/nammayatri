@@ -29,6 +29,7 @@ import Kernel.Prelude
 import Kernel.Types.Common
 import Kernel.Types.Id
 import Servant.API
+
 -- import Domain.Types.Quote (OneWaySpecialZoneQuoteDetails)
 
 activeBookingStatus :: [BookingStatus]

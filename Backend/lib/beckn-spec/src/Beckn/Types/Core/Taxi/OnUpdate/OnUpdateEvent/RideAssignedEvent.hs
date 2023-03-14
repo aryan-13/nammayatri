@@ -93,11 +93,20 @@ data FulfillmentInfo = FulfillmentInfo
   { id :: Text, -- bppRideId
     start :: StartInfo,
     agent :: Agent,
-    vehicle :: Vehicle
+    vehicle :: Vehicle,
+    state :: FulfillmentState
   }
   deriving (Generic, Show, FromJSON, ToJSON)
 
 instance ToSchema FulfillmentInfo where
+  declareNamedSchema = genericDeclareUnNamedSchema defaultSchemaOptions
+
+newtype FulfillmentState = FulfillmentState
+  { code :: Text
+  }
+  deriving (Generic, FromJSON, ToJSON, Show)
+
+instance ToSchema FulfillmentState where
   declareNamedSchema = genericDeclareUnNamedSchema defaultSchemaOptions
 
 newtype StartInfo = StartInfo

@@ -35,8 +35,8 @@ buildOnConfirmReq req = do
       DOnConfirm.OnConfirmReq
         { bppBookingId = Id message.order.id,
           specialZoneOtp = case message.order.fulfillment.start.authorization of
-                              Nothing -> Nothing
-                              Just auth -> Just $ auth.token
+            Nothing -> Nothing
+            Just auth -> Just $ auth.token
         }
 
 handleError ::

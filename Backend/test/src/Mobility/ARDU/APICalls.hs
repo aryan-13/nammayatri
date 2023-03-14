@@ -93,6 +93,7 @@ ui = do
                         :<|> _
                         :<|> _
                       )
+               :<|> _
              ) = driverClient
 
     (_ :<|> updateLocation) = locationClient

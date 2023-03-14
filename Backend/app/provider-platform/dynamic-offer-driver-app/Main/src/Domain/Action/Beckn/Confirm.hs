@@ -53,8 +53,8 @@ import qualified Storage.Queries.BusinessEvent as QBE
 import qualified Storage.Queries.Driver.DriverFlowStatus as QDFS
 import qualified Storage.Queries.DriverInformation as QDI
 import qualified Storage.Queries.DriverQuote as QDQ
-import qualified Storage.Queries.QuoteSpecialZone as QQSpecialZone
 import qualified Storage.Queries.Person as QPerson
+import qualified Storage.Queries.QuoteSpecialZone as QQSpecialZone
 import qualified Storage.Queries.Ride as QRide
 import qualified Storage.Queries.RideDetails as QRideD
 import qualified Storage.Queries.RiderDetails as QRD
@@ -188,11 +188,11 @@ handler subscriber transporterId req = do
         -- QDFS.updateStatus driver.id DDFS.RIDE_ASSIGNED {rideId = ride.id}
         -- QRideD.create rideDetails
         QBE.logRideConfirmedEvent booking.id
-        -- QBE.logDriverAssignedEvent (cast driver.id) booking.id ride.id
-        -- QDQ.setInactiveByRequestId driverQuote.searchRequestId
-        -- QSRD.setInactiveByRequestId driverQuote.searchRequestId
+      -- QBE.logDriverAssignedEvent (cast driver.id) booking.id ride.id
+      -- not needed -- QDQ.setInactiveByRequestId driverQuote.searchRequestId
+      -- QSRD.setInactiveByRequestId driverQuote.searchRequestId
       -- DLoc.updateOnRide (cast driver.id) True
----------------Not needed
+      ---------------Not needed
       -- for_ driverSearchReqs $ \driverReq -> do
       --   let driverId = driverReq.driverId
       --   unless (driverId == driver.id) $ do
@@ -202,7 +202,7 @@ handler subscriber transporterId req = do
       --       QSRD.updateDriverResponse driverReq.id SReqD.Pulled
       --     driver_ <- QPerson.findById driverId >>= fromMaybeM (PersonNotFound driverId.getId)
       --     Notify.notifyDriverClearedFare transporter.id driverId driverReq.searchRequestId driverQuote.estimatedFare driver_.deviceToken
----------------Not needed
+      ---------------Not needed
       uBooking <- QRB.findById booking.id >>= fromMaybeM (BookingNotFound booking.id.getId)
       -- Not needed -- Notify.notifyDriver transporter.id notificationType notificationTitle (message uBooking) driver.id driver.deviceToken
 
@@ -215,7 +215,6 @@ handler subscriber transporterId req = do
             fromLocation = uBooking.fromLocation,
             toLocation = uBooking.toLocation
           }
-
   where
     notificationType = FCM.DRIVER_ASSIGNMENT
     notificationTitle = "Driver has been assigned the ride!"
@@ -339,7 +338,7 @@ cancelBooking booking mbDriver transporter = do
   mbRide <- QRide.findActiveByRBId booking.id
   bookingCancellationReason <- case mbDriver of
     Nothing -> buildBookingCancellationReason booking.id Nothing mbRide
-    Just driver ->  buildBookingCancellationReason booking.id (Just driver.id) mbRide
+    Just driver -> buildBookingCancellationReason booking.id (Just driver.id) mbRide
   Esq.runTransaction $ do
     QRB.updateStatus booking.id DRB.CANCELLED
     QBCR.upsert bookingCancellationReason

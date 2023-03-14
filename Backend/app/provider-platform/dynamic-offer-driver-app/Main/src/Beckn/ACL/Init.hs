@@ -62,4 +62,3 @@ buildInitReq subscriber req = do
       case itemCode.fareProductType of
         Init.ONE_WAY_SPECIAL_ZONE -> DInit.InitSpecialZoneReq
         _ -> DInit.InitNormalReq
-

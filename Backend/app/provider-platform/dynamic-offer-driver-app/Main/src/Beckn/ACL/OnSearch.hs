@@ -23,6 +23,7 @@ import Beckn.Types.Core.Taxi.OnSearch.Item (BreakupItem (..), BreakupPrice (..))
 import qualified Domain.Action.Beckn.Search as DSearch
 import qualified Domain.Types.Vehicle.Variant as Variant
 import Kernel.Prelude
+
 -- import Kernel.Utils.Common (throwError)
 -- import Kernel.Types.Error
 
@@ -53,11 +54,9 @@ mkOnSearchMessage res@DSearch.DSearchRes {..} = do
   let startInfo = mkStartInfo res
   let stopInfo = mkStopInfo res
   let quoteEntitiesList = case (estimateList, specialQuoteList) of
-                            (Just estimates, _) -> map (mkQuoteEntities startInfo stopInfo) estimates
-                            (Nothing, Just quotes) -> map (mkQuoteEntitiesSpecialZone startInfo stopInfo) quotes
-                            (_,_) -> map (mkQuoteEntities startInfo stopInfo) [] --this won't happen
-      
-      
+        (Just estimates, _) -> map (mkQuoteEntities startInfo stopInfo) estimates
+        (Nothing, Just quotes) -> map (mkQuoteEntitiesSpecialZone startInfo stopInfo) quotes
+        (_, _) -> map (mkQuoteEntities startInfo stopInfo) [] --this won't happen
   let items = map (.item) quoteEntitiesList
       fulfillments = map (.fulfillment) quoteEntitiesList
       contacts = fromMaybe "" provider.mobileNumber
@@ -78,7 +77,7 @@ mkOnSearchMessage res@DSearch.DSearchRes {..} = do
           { id = provider.subscriberId.getShortId,
             descriptor = OS.Descriptor {name = provider.name},
             locations = [],
-            categories = [autoOneWayCategory, oneWaySpecialZoneCategory],--need to change
+            categories = [autoOneWayCategory, oneWaySpecialZoneCategory], --need to change
             items,
             offers = [],
             add_ons = [],
@@ -145,10 +144,10 @@ mkQuoteEntities start end it = do
               OS.ItemPrice
                 { currency = currency',
                   value = minPriceDecimalValue, -- only one estimatedOffered_value
-                  offered_value = minPriceDecimalValue,-- only one estimatedOffered_value
-                  minimum_value = minPriceDecimalValue,-- only one estimatedOffered_value
-                  maximum_value = maxPriceDecimalValue,-- only one estimatedOffered_value
-                  value_breakup = estimateBreakupList--[]
+                  offered_value = minPriceDecimalValue, -- only one estimatedOffered_value
+                  minimum_value = minPriceDecimalValue, -- only one estimatedOffered_value
+                  maximum_value = maxPriceDecimalValue, -- only one estimatedOffered_value
+                  value_breakup = estimateBreakupList --[]
                 },
             descriptor =
               OS.ItemDescriptor
@@ -164,8 +163,8 @@ mkQuoteEntities start end it = do
                     night_shift_start = (.nightShiftStart) =<< it.nightShiftRate,
                     night_shift_end = (.nightShiftEnd) =<< it.nightShiftRate,
                     waiting_charge_per_min = it.waitingCharges.waitingChargePerMin, ---Nothing
-                    waiting_time_estimated_threshold = it.waitingCharges.waitingTimeEstimatedThreshold,---Nothing
-                    drivers_location = it.driversLatLong--Nothing
+                    waiting_time_estimated_threshold = it.waitingCharges.waitingTimeEstimatedThreshold, ---Nothing
+                    drivers_location = it.driversLatLong --Nothing
                   },
             base_distance = Nothing,
             base_duration = Nothing
@@ -174,7 +173,6 @@ mkQuoteEntities start end it = do
     { fulfillment,
       item
     }
-
 
 mkQuoteEntitiesSpecialZone :: OS.StartInfo -> OS.StopInfo -> DSearch.SpecialZoneQuoteInfo -> QuoteEntities
 mkQuoteEntitiesSpecialZone start end it = do
@@ -199,9 +197,9 @@ mkQuoteEntitiesSpecialZone start end it = do
               OS.ItemPrice
                 { currency = currency',
                   value = estimatedFare, -- only one estimatedOffered_value
-                  offered_value = estimatedFare,-- only one estimatedOffered_value
-                  minimum_value = estimatedFare,-- only one estimatedOffered_value
-                  maximum_value = estimatedFare,-- only one estimatedOffered_value
+                  offered_value = estimatedFare, -- only one estimatedOffered_value
+                  minimum_value = estimatedFare, -- only one estimatedOffered_value
+                  maximum_value = estimatedFare, -- only one estimatedOffered_value
                   value_breakup = []
                 },
             descriptor =

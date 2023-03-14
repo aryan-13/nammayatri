@@ -31,6 +31,7 @@ module API.UI.Driver
   )
 where
 
+import qualified API.UI.Ride as Ride
 import Data.Time (Day)
 import qualified Domain.Action.UI.Driver as DDriver
 import qualified Domain.Types.Person as SP
@@ -93,6 +94,11 @@ type API =
                         :> MandatoryQueryParam "day" Day
                         :> Get '[JSON] DDriver.DriverStatsRes
                   )
+             :<|> "otpRide"
+               :> TokenAuth
+               :> "start"
+               :> ReqBody '[JSON] Ride.OTPRideReq
+               :> Post '[JSON] APISuccess
          )
 
 handler :: FlowServer API
@@ -110,6 +116,7 @@ handler =
                       :<|> updateDriver
                       :<|> getStats
                   )
+             :<|> Ride.otpRideCreateAndStart
          )
 
 createDriver :: SP.Person -> DDriver.OnboardDriverReq -> FlowHandler DDriver.OnboardDriverRes

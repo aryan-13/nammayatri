@@ -153,8 +153,7 @@ buildOneWaySpecialZoneQuoteDetails item = do
   --     & fromMaybeM (InvalidRequest "Trip type is ONE_WAY, but distanceToNearestDriver is Nothing")
   pure
     DOnSearch.OneWaySpecialZoneQuoteDetails
-      {
-        quoteType = item.id
+      { quoteType = item.id
       }
 
 --FIXME remove round by using Kilometers and Hours in spec

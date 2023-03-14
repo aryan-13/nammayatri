@@ -29,10 +29,12 @@ import qualified Kernel.Types.Common as Common
 import Kernel.Types.Id
 import qualified Storage.Tabular.FareParameters as Fare
 -- import Storage.Tabular.Person (PersonTId)
-import qualified Storage.Tabular.SearchRequestSpecialZone as SReq
+
 import qualified Storage.Tabular.Merchant as SMerchant
+import qualified Storage.Tabular.SearchRequestSpecialZone as SReq
 -- import qualified Storage.Tabular.SearchRequestForDriver as SRFD
 import Storage.Tabular.Vehicle ()
+
 -- import qualified Storage.Tabular.Merchant as SMerchant
 -- import Kernel.Types.Common
 
@@ -70,19 +72,20 @@ instance TType (QuoteSpecialZoneT, Fare.FareParametersT) Domain.QuoteSpecialZone
         { id = Id id,
           searchRequestId = fromKey searchRequestId,
           providerId = fromKey providerId,
-        --   searchRequestForDriverId = fromKey <$> searchRequestForDriverId,
-        --   driverId = fromKey driverId,
-        --   durationToPickup = roundToIntegral durationToPickup,
           ..
         }
+  --   searchRequestForDriverId = fromKey <$> searchRequestForDriverId,
+  --   driverId = fromKey driverId,
+  --   durationToPickup = roundToIntegral durationToPickup,
+
   toTType Domain.QuoteSpecialZone {..} =
     ( QuoteSpecialZoneT
         { id = getId id,
           searchRequestId = toKey searchRequestId,
           providerId = toKey providerId,
-        --   searchRequestForDriverId = toKey <$> searchRequestForDriverId,
-        --   driverId = toKey driverId,
-        --   durationToPickup = realToFrac durationToPickup,
+          --   searchRequestForDriverId = toKey <$> searchRequestForDriverId,
+          --   driverId = toKey driverId,
+          --   durationToPickup = realToFrac durationToPickup,
           fareParametersId = toKey fareParams.id,
           ..
         },

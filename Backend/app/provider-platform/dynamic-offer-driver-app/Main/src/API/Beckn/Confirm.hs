@@ -73,8 +73,7 @@ confirm transporterId (SignatureAuthResult _ subscriber _) req =
               void $
                 BP.sendRideAssignedUpdateToBAP dConfirmRes.booking ride
           incrementTotalRidesCount transporterId driverQuote.driverId
-        DBooking.SpecialZoneBooking -> do--pure ()
-          -- ride <- dConfirmRes.ride & fromMaybeM (RideNotFound dConfirmRes.booking.id.getId)
+        DBooking.SpecialZoneBooking -> do
           now <- getCurrentTime
           -- driverQuote <- runInReplica $ QDQ.findById (Id dConfirmRes.booking.quoteId) >>= fromMaybeM (QuoteNotFound dConfirmRes.booking.quoteId)
           -- driver <- runInReplica $ QPerson.findById driverQuote.driverId >>= fromMaybeM (PersonNotFound driverQuote.driverId.getId)

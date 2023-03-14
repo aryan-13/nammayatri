@@ -33,8 +33,8 @@ import qualified Domain.Types.Estimate as DEstimate
 import qualified Domain.Types.Person.PersonFlowStatus as DPFS
 import qualified Domain.Types.Quote as DQuote
 import qualified Domain.Types.RentalSlab as DRentalSlab
-import qualified Domain.Types.SpecialZoneQuote as DSpecialZoneQuote
 import qualified Domain.Types.SearchRequest as DSearchReq
+import qualified Domain.Types.SpecialZoneQuote as DSpecialZoneQuote
 import qualified Domain.Types.TripTerms as DTripTerms
 import Domain.Types.VehicleVariant
 import Environment
@@ -270,4 +270,3 @@ mkEstimatePrice ::
   BreakupPriceInfo ->
   m DEstimate.EstimateBreakupPrice
 mkEstimatePrice BreakupPriceInfo {..} = pure DEstimate.EstimateBreakupPrice {..}
-

@@ -17,14 +17,15 @@ module Beckn.ACL.OnConfirm (buildOnConfirmMessage) where
 import qualified Beckn.ACL.Common as Common
 import qualified Beckn.Types.Core.Taxi.OnConfirm as OnConfirm
 import qualified Domain.Action.Beckn.Confirm as DConfirm
+-- import Kernel.Types.Id
+
+import qualified Domain.Types.Booking as DConfirm
 import qualified Domain.Types.Booking.BookingLocation as DBL
 import Kernel.Prelude
--- import Kernel.Types.Id
+import Kernel.Types.Error
+import Kernel.Types.Id (Id (getId))
 import Kernel.Utils.Common
 import SharedLogic.FareCalculator
-import qualified Domain.Types.Booking as DConfirm
-import Kernel.Types.Error
-import Kernel.Types.Id (Id(getId))
 
 buildOnConfirmMessage :: MonadFlow m => UTCTime -> DConfirm.DConfirmRes -> m OnConfirm.OnConfirmMessage
 buildOnConfirmMessage now res = do
@@ -35,44 +36,45 @@ buildOnConfirmMessage now res = do
       totalFareDecimal = fromIntegral booking.estimatedFare
       currency = "INR"
   fulfillmentDetails <- case booking.bookingType of
-                      DConfirm.SpecialZoneBooking -> do
-                        otpCode <- booking.specialZoneOtpCode & fromMaybeM (RideWithBookingIdNotFound booking.id.getId) --replace me with this err OtpNotFoundForSpecialZoneBooking
-                        return $ mkSpecialZoneFulfillmentInfo res.fromLocation res.toLocation now otpCode
-                      DConfirm.NormalBooking -> return $ mkFulfillmentInfo res.fromLocation res.toLocation now
-  return $ OnConfirm.OnConfirmMessage
-    { order =
-        OnConfirm.Order
-          { id = getId booking.id,
-            state = "ACTIVE",
-            items = [mkOrderItem itemCode],
-            fulfillment = fulfillmentDetails, -- booking.startTime, --FIXME
-            quote =
-              OnConfirm.Quote
-                { price =
-                    OnConfirm.QuotePrice
-                      { currency,
-                        value = totalFareDecimal,
-                        offered_value = totalFareDecimal
-                      },
-                  breakup =
-                    mkBreakupList
-                      (OnConfirm.BreakupItemPrice currency . fromIntegral)
-                      OnConfirm.BreakupItem
-                      fareParams
-                },
-            payment =
-              OnConfirm.Payment
-                { collected_by = "BAP",
-                  params =
-                    OnConfirm.PaymentParams
-                      { currency,
-                        amount = totalFareDecimal
-                      },
-                  _type = OnConfirm.ON_FULFILLMENT,
-                  time = OnConfirm.TimeDuration "P2D"
-                }
-          }
-    }
+    DConfirm.SpecialZoneBooking -> do
+      otpCode <- booking.specialZoneOtpCode & fromMaybeM (RideWithBookingIdNotFound booking.id.getId) --replace me with this err OtpNotFoundForSpecialZoneBooking
+      return $ mkSpecialZoneFulfillmentInfo res.fromLocation res.toLocation now otpCode
+    DConfirm.NormalBooking -> return $ mkFulfillmentInfo res.fromLocation res.toLocation now
+  return $
+    OnConfirm.OnConfirmMessage
+      { order =
+          OnConfirm.Order
+            { id = getId booking.id,
+              state = "ACTIVE",
+              items = [mkOrderItem itemCode],
+              fulfillment = fulfillmentDetails, -- booking.startTime, --FIXME
+              quote =
+                OnConfirm.Quote
+                  { price =
+                      OnConfirm.QuotePrice
+                        { currency,
+                          value = totalFareDecimal,
+                          offered_value = totalFareDecimal
+                        },
+                    breakup =
+                      mkBreakupList
+                        (OnConfirm.BreakupItemPrice currency . fromIntegral)
+                        OnConfirm.BreakupItem
+                        fareParams
+                  },
+              payment =
+                OnConfirm.Payment
+                  { collected_by = "BAP",
+                    params =
+                      OnConfirm.PaymentParams
+                        { currency,
+                          amount = totalFareDecimal
+                        },
+                    _type = OnConfirm.ON_FULFILLMENT,
+                    time = OnConfirm.TimeDuration "P2D"
+                  }
+            }
+      }
 
 mkOrderItem :: OnConfirm.ItemCode -> OnConfirm.OrderItem
 mkOrderItem code =
@@ -83,20 +85,18 @@ mkOrderItem code =
           }
     }
 
-
 mklocation :: DBL.BookingLocation -> OnConfirm.Location
-mklocation loc = 
+mklocation loc =
   OnConfirm.Location
-  { gps =
-      OnConfirm.Gps
-        { lat = loc.lat,
-          lon = loc.lon
-        },
-    address = castAddress loc.address
-  }
+    { gps =
+        OnConfirm.Gps
+          { lat = loc.lat,
+            lon = loc.lon
+          },
+      address = castAddress loc.address
+    }
   where
     castAddress DBL.LocationAddress {..} = OnConfirm.Address {area_code = areaCode, locality = area, ward = Nothing, door = Nothing, ..}
-              
 
 mkFulfillmentInfo :: DBL.BookingLocation -> DBL.BookingLocation -> UTCTime -> OnConfirm.FulfillmentInfo
 mkFulfillmentInfo fromLoc toLoc startTime = do
@@ -115,14 +115,14 @@ mkFulfillmentInfo fromLoc toLoc startTime = do
             }
     }
 
-
-
 mkSpecialZoneFulfillmentInfo :: DBL.BookingLocation -> DBL.BookingLocation -> UTCTime -> Text -> OnConfirm.FulfillmentInfo
 mkSpecialZoneFulfillmentInfo fromLoc toLoc startTime otp = do
-  let authorization = Just $ OnConfirm.Authorization
-                      { _type = "OTP",
-                        token = otp
-                      }
+  let authorization =
+        Just $
+          OnConfirm.Authorization
+            { _type = "OTP",
+              token = otp
+            }
   OnConfirm.FulfillmentInfo
     { state = OnConfirm.FulfillmentState "NEW", -- fix me
       start =

@@ -27,8 +27,8 @@ import Storage.Queries.FullEntityBuilders (buildFullQuote)
 import Storage.Tabular.DriverOffer
 import Storage.Tabular.Quote
 import Storage.Tabular.Quote.Instances
-import Storage.Tabular.SpecialZoneQuote
 import Storage.Tabular.RentalSlab
+import Storage.Tabular.SpecialZoneQuote
 import Storage.Tabular.TripTerms
 
 createDetails :: QuoteDetailsT -> FullEntitySqlDB ()

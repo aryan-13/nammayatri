@@ -181,4 +181,3 @@ handler merchantId req = do
                 specialZoneOtpCode = Nothing,
                 ..
               }
-

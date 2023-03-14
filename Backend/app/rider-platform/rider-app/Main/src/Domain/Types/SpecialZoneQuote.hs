@@ -18,6 +18,7 @@ import Kernel.Prelude
 -- import Kernel.Types.Common
 import Kernel.Types.Id
 import Kernel.Utils.GenericPretty (PrettyShow)
+
 -- import qualified Domain.Action.Beckn.Search as Domain.Types
 
 data SpecialZoneQuote = SpecialZoneQuote
